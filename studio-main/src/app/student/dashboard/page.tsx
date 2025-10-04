@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -8,27 +7,50 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { submissions as initialSubmissions, getMilestonesByStudent } from "@/lib/data";
 import { StudentSubmissionsTable } from "@/components/student/submissions-table";
 import { useState, useEffect } from "react";
 import type { Submission, Milestone } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, CalendarClock } from "lucide-react";
+import { PlusCircle, CalendarClock, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function StudentDashboardPage() {
-  // For this example, we'll filter submissions for a specific student.
-  // In a real app, this would be based on the logged-in user.
-  const studentName = "Alice Johnson";
-  const [submissions, setSubmissions] = useState<Submission[]>(
-    initialSubmissions.filter((s) => s.student.name === studentName)
-  );
-  
+  const { user } = useAuth();
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    setMilestones(getMilestonesByStudent(studentName));
-  }, [studentName]);
+    if (!user) return;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const token = await user.getIdToken();
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        // Fetch student-specific submissions from the new API route
+        const submissionsRes = await fetch('/api/my-submissions', { headers });
+        const submissionsData = await submissionsRes.json();
+        // **FIX: Map _id to id**
+        setSubmissions(submissionsData.map((s: any) => ({ ...s, id: s._id.toString() })));
+        
+        // Fetch student-specific milestones
+        const milestonesRes = await fetch('/api/milestones', { headers }); // Assuming /api/milestones is also secured
+        const milestonesData = await milestonesRes.json();
+        // **FIX: Map _id to id**
+        setMilestones(milestonesData.map((m: any) => ({ ...m, id: m._id.toString() })));
+
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
   
   const upcomingMilestone = milestones.find(m => m.status === 'In Progress' || m.status === 'Pending');
   const showUpcomingDeadline = upcomingMilestone && (upcomingMilestone.status === 'In Progress' || (upcomingMilestone.status === 'Pending' && upcomingMilestone.dueDate !== 'TBD')) && !upcomingMilestone.submissionId;
@@ -39,7 +61,7 @@ export default function StudentDashboardPage() {
         <div className="flex flex-col">
           <h1 className="text-3xl font-bold font-headline">My Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {studentName}. Track and manage your dissertation.
+            Welcome back. Track and manage your dissertation.
           </p>
         </div>
       </div>
@@ -75,7 +97,13 @@ export default function StudentDashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StudentSubmissionsTable submissions={submissions} />
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <StudentSubmissionsTable submissions={submissions} />
+          )}
         </CardContent>
       </Card>
     </div>

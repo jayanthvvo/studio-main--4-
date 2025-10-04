@@ -47,12 +47,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const userProfile = await response.json();
             setRole(userProfile.role || null);
           } else {
-            console.error("Failed to fetch user profile.");
+            console.error("Failed to fetch user profile, signing out.");
             setRole(null);
+            auth.signOut(); // Sign out if the profile is missing or invalid
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
           setRole(null);
+          auth.signOut();
         }
       } else {
         // No user is logged in. Clear the state.
@@ -94,6 +96,7 @@ export function ProtectedRoute({ children, requiredRole }: { children: ReactNode
         }
 
         if (role !== requiredRole) {
+            // If the role doesn't match, redirect to a generic login page
             router.push('/login');
             return;
         }

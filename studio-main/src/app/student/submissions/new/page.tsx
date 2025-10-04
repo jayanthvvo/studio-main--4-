@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,67 +14,57 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { submissions, milestones } from "@/lib/data";
 import Link from "next/link";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function NewSubmissionPage() {
   const router = useRouter();
   const { toast } = useToast();
-  
-  const upcomingMilestone = milestones.find(m => m.status === 'In Progress');
+  const { user } = useAuth(); // Get the authenticated user
 
-  const [title, setTitle] = useState(upcomingMilestone?.title || "");
+  const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title || !content || !user) return;
+    
+    setIsLoading(true);
 
-    if (!upcomingMilestone) {
+    try {
+        const token = await user.getIdToken();
+        const response = await fetch('/api/submissions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ title, content, deadline: "TBD" }), // You can enhance this to get a real deadline
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to create submission.");
+        }
+
         toast({
-            title: "No Upcoming Milestone",
-            description: "There is no pending milestone to submit for.",
+          title: "Submission Successful!",
+          description: `Your draft "${title}" has been submitted.`,
+        });
+
+        router.push("/student/dashboard");
+
+    } catch (error: any) {
+        toast({
+            title: "Submission Failed",
+            description: error.message || "An unexpected error occurred.",
             variant: "destructive",
         });
-        return;
+    } finally {
+        setIsLoading(false);
     }
-
-    const newSubmission = {
-      id: (submissions.length + 1).toString(),
-      student: {
-        name: "Alice Johnson",
-        avatarUrl: "https://picsum.photos/seed/1/100/100",
-      },
-      title,
-      content,
-      status: "In Review" as const,
-      deadline: upcomingMilestone.dueDate,
-      grade: null,
-      submittedAt: new Date().toLocaleDateString('en-CA'),
-      feedback: null,
-    };
-
-    submissions.unshift(newSubmission);
-
-    const milestoneIndex = milestones.findIndex(m => m.id === upcomingMilestone.id);
-    if(milestoneIndex !== -1) {
-        milestones[milestoneIndex].status = "Complete";
-        milestones[milestoneIndex].submissionId = newSubmission.id;
-        
-        // Make the next 'Upcoming' milestone 'Pending'
-        const nextMilestoneIndex = milestones.findIndex(m => m.status === 'Upcoming');
-        if(nextMilestoneIndex !== -1) {
-            milestones[nextMilestoneIndex].status = 'Pending';
-        }
-    }
-
-
-    toast({
-      title: "Submission Successful!",
-      description: `Your draft "${title}" has been submitted.`,
-    });
-
-    router.push("/student/dashboard");
   };
 
   return (
@@ -86,9 +76,9 @@ export default function NewSubmissionPage() {
 
       <Card className="max-w-3xl mx-auto">
         <CardHeader>
-          <CardTitle>New Submission for "{upcomingMilestone?.title}"</CardTitle>
+          <CardTitle>New Submission</CardTitle>
           <CardDescription>
-            Submit your draft for the deadline on {upcomingMilestone?.dueDate}.
+            Submit your draft for review.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,10 +87,11 @@ export default function NewSubmissionPage() {
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
-                placeholder="Enter the title of your submission"
+                placeholder="e.g., Chapter 1: Introduction Draft"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -112,10 +103,11 @@ export default function NewSubmissionPage() {
                 onChange={(e) => setContent(e.target.value)}
                 required
                 rows={15}
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" disabled={!upcomingMilestone}>
-              <Send className="mr-2 h-4 w-4" />
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               Submit for Review
             </Button>
           </form>
