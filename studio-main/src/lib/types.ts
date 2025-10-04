@@ -1,33 +1,33 @@
-export type SubmissionStatus = 'Pending' | 'In Review' | 'Approved' | 'Requires Revisions';
-
-export type Submission = {
+export interface Submission {
   id: string;
+  _id?: any; // For MongoDB ObjectId
   student: {
     name: string;
     avatarUrl: string;
+    uid?: string;
   };
   title: string;
-  status: SubmissionStatus;
+  // **FIX: Add "Reviewed" to the list of possible statuses**
+  status: "In Review" | "Complete" | "Needs Revision" | "Reviewed";
+  submittedAt: string;
   deadline: string;
   grade: string | null;
-  submittedAt: string;
   content: string;
   feedback: string | null;
-};
+}
 
-export type Message = {
-    id: string;
-    sender: 'student' | 'supervisor';
-    text: string;
-    timestamp: string;
-};
-
-export type MilestoneStatus = 'Complete' | 'In Progress' | 'Pending' | 'Upcoming';
-
-export type Milestone = {
+export interface Milestone {
   id: string;
+  _id?: any; // For MongoDB ObjectId
   title: string;
   dueDate: string;
-  status: MilestoneStatus;
+  status: 'Complete' | 'In Progress' | 'Pending' | 'Upcoming';
   submissionId?: string;
-};
+}
+
+export interface Message {
+  id: string;
+  sender: 'student' | 'supervisor';
+  text: string;
+  timestamp: string;
+}

@@ -13,15 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, UserCircle } from "lucide-react";
 import { Submission } from "@/lib/types";
-// We are temporarily removing these imports to fix the build error
-// import { ReviewForm } from "@/components/submission/review-form";
+import { ReviewForm } from "@/components/submission/review-form"; // <-- UNCOMMENTED
+import { Separator } from "@/components/ui/separator";
+// We'll keep these commented for now until we build the AI features
 // import { SubmissionSummary } from "@/components/ai/submission-summary";
 // import { PlagiarismCheck } from "@/components/ai/plagiarism-check";
-import { Separator } from "@/components/ui/separator";
 
 export default function SubmissionPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = params.id as string; 
   
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,7 @@ export default function SubmissionPage() {
               <p className="whitespace-pre-wrap">{submission.content}</p>
             </CardContent>
           </Card>
-          {/* <ReviewForm submission={submission} /> */}
+          <ReviewForm submission={submission} /> {/* <-- UNCOMMENTED */}
         </div>
 
         <div className="space-y-6">

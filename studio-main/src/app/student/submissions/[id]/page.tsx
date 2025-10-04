@@ -1,105 +1,111 @@
-
 "use client";
 
-import { getSubmissionById } from "@/lib/data";
-import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle, Clock, AlertCircle, FileSearch, MessageSquare, BookOpen } from "lucide-react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from 'next/navigation';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import React, { useEffect, useState } from "react";
-import type { Submission } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Loader2, MessageSquareQuote } from "lucide-react";
+import { Submission } from "@/lib/types";
+import { useAuth } from "@/contexts/auth-context";
 
-const statusInfo: { [key: string]: { icon: React.ElementType, variant: "default" | "secondary" | "destructive" | "outline" } } = {
-  Approved: { icon: CheckCircle, variant: "default" },
-  "In Review": { icon: FileSearch, variant: "secondary" },
-  "Requires Revisions": { icon: AlertCircle, variant: "destructive" },
-  Pending: { icon: Clock, variant: "outline" },
-};
+export default function StudentSubmissionDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const { user } = useAuth(); // Get user for auth token
 
-export default function StudentSubmissionPage({ params }: { params: { id: string } }) {
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    const { id } = params;
-    const foundSubmission = getSubmissionById(id);
-    if (foundSubmission) {
-      setSubmission(foundSubmission);
-    } else {
-      // In a real app, you might want to show a proper not found page
-      notFound();
-    }
-  }, [params]);
+    if (!id || !user) return;
 
-  if (!submission) {
-    return null; // or a loading spinner
+    const fetchSubmission = async () => {
+      try {
+        setLoading(true);
+        const token = await user.getIdToken();
+        // We can reuse the same API endpoint, just need to secure it
+        const response = await fetch(`/api/submissions/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          throw new Error('Submission not found or you do not have permission.');
+        }
+        const data = await response.json();
+        setSubmission({ ...data, id: data._id });
+      } catch (error) {
+        console.error("Failed to fetch submission:", error);
+        router.push('/student/dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubmission();
+  }, [id, router, user]);
+
+  if (loading || !submission) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
-  
-  const StatusIcon = statusInfo[submission.status].icon;
 
   return (
     <div className="space-y-6">
-      <Link href="/student/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 text-sm text-muted-foreground">
         <ArrowLeft className="h-4 w-4" />
         Back to Dashboard
-      </Link>
+      </Button>
 
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold font-headline">{submission.title}</h1>
-        </div>
-        <Badge variant={statusInfo[submission.status].variant} className="gap-2 text-base px-4 py-2">
-            <StatusIcon className="h-4 w-4" />
-            {submission.status}
-        </Badge>
-      </div>
-
-      <div className="grid gap-8 md:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{submission.title}</CardTitle>
+              <CardDescription>
+                Submitted on {new Date(submission.submittedAt).toLocaleDateString()}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{submission.content}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge>{submission.status}</Badge>
+              {submission.grade && <p className="mt-4 text-2xl font-bold">Grade: {submission.grade}</p>}
+            </CardContent>
+          </Card>
+          
+          {submission.feedback && (
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <BookOpen className="h-5 w-5" />
-                        Submission Content
+                        <MessageSquareQuote className="h-5 w-5" />
+                        Supervisor Feedback
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                        {submission.content}
-                    </p>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{submission.feedback}</p>
                 </CardContent>
             </Card>
-
-            {submission.feedback && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <MessageSquare className="h-5 w-5" />
-                           Supervisor Feedback
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                            {submission.feedback}
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
-        <div className="space-y-6">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Submission Details</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm space-y-2">
-                    <div className="flex justify-between"><span>Submitted At:</span> <span className="font-medium">{submission.submittedAt || 'N/A'}</span></div>
-                    <Separator />
-                    <div className="flex justify-between"><span>Deadline:</span> <span className="font-medium">{submission.deadline}</span></div>
-                    <Separator />
-                    <div className="flex justify-between"><span>Grade:</span> <span className="font-medium">{submission.grade || 'Not Graded'}</span></div>
-                </CardContent>
-            </Card>
+          )}
         </div>
       </div>
     </div>
