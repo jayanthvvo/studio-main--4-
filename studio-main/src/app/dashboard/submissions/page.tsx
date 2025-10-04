@@ -22,7 +22,7 @@ export default function SubmissionsPage() {
         setLoading(true);
         const response = await fetch('/api/submissions');
         const data = await response.json();
-        // **FIX: Map _id to id**
+        // **FIX: Map _id to id for the frontend components**
         setSubmissions(data.map((s: any) => ({ ...s, id: s._id.toString() })));
       } catch (error) {
         console.error("Failed to fetch submissions:", error);

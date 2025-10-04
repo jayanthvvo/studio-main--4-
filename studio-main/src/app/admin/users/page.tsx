@@ -1,3 +1,7 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/auth-context";
 import {
   Card,
   CardContent,
@@ -14,112 +18,104 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import Image from "next/image";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const users = [
-  {
-    id: "1",
-    name: "Dr. Evelyn Reed",
-    email: "e.reed@university.edu",
-    role: "Supervisor",
-    avatarUrl: "https://picsum.photos/seed/5/100/100"
-  },
-  {
-    id: "2",
-    name: "Alice Johnson",
-    email: "a.johnson@university.edu",
-    role: "Student",
-    avatarUrl: "https://picsum.photos/seed/1/100/100"
-  },
-    {
-    id: "3",
-    name: "Bob Williams",
-    email: "b.williams@university.edu",
-    role: "Student",
-    avatarUrl: "https://picsum.photos/seed/2/100/100"
-  },
-   {
-    id: "4",
-    name: "Admin User",
-    email: "admin@university.edu",
-    role: "Admin",
-    avatarUrl: "https://picsum.photos/seed/admin/100/100"
-  },
-];
-
+// Define a type for the user data we expect from the API
+interface UserProfile {
+    _id: string;
+    uid: string;
+    email: string;
+    displayName: string;
+    role: 'student' | 'supervisor' | 'admin';
+    createdAt: string;
+}
 
 export default function AdminUsersPage() {
+  const { user: adminUser } = useAuth();
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!adminUser) return;
+
+    const fetchUsers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = await adminUser.getIdToken();
+        const response = await fetch('/api/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to fetch users.");
+        }
+
+        const data = await response.json();
+        setUsers(data);
+      } catch (err: any) {
+        console.error("Error fetching users:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [adminUser]);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col">
-        <h1 className="text-3xl font-bold font-headline">User Management</h1>
-        <p className="text-muted-foreground">
-          View and manage all users in the system.
-        </p>
-      </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle>User Management</CardTitle>
           <CardDescription>
-            A list of all supervisors, students, and administrators.
+            View and manage all registered users in the system.
           </CardDescription>
         </CardHeader>
         <CardContent>
-           <Table>
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="ml-2">Loading users...</p>
+            </div>
+          ) : error ? (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : (
+            <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="hidden w-[100px] sm:table-cell">
-                    <span className="sr-only">Avatar</span>
-                  </TableHead>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Display Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
+                  <TableHead>Date Joined</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="hidden sm:table-cell">
-                       <Image
-                        alt="User avatar"
-                        className="aspect-square rounded-full object-cover"
-                        height="40"
-                        src={user.avatarUrl}
-                        width="40"
-                        data-ai-hint="user portrait"
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableRow key={user._id}>
+                    <TableCell className="font-medium">{user.displayName}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'Admin' ? 'destructive' : user.role === 'Supervisor' ? 'secondary' : 'outline' }>{user.role}</Badge>
+                      <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'supervisor' ? 'secondary' : 'default'}>
+                        {user.role}
+                      </Badge>
                     </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          )}
         </CardContent>
       </Card>
     </div>
