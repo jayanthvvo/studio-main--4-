@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -22,6 +21,8 @@ const statusInfo: { [key: string]: { icon: React.ElementType, variant: "default"
   "In Review": { icon: FileSearch, variant: "secondary" },
   "Requires Revisions": { icon: AlertCircle, variant: "destructive" },
   Pending: { icon: Clock, variant: "outline" },
+  Reviewed: { icon: CheckCircle, variant: "default" },
+  Complete: { icon: CheckCircle, variant: "default" },
 };
 
 export function StudentSubmissionsTable({ submissions }: { submissions: Submission[] }) {
@@ -46,33 +47,36 @@ export function StudentSubmissionsTable({ submissions }: { submissions: Submissi
         </TableRow>
       </TableHeader>
       <TableBody>
-        {submissions.map((submission) => (
-          <TableRow
-            key={submission.id}
-          >
-            <TableCell>
-              <div className="font-medium">{submission.title}</div>
-            </TableCell>
-            <TableCell>
-              <Badge variant={statusInfo[submission.status].variant} className="gap-1">
-                {React.createElement(statusInfo[submission.status].icon, { className: "h-3 w-3" })}
-                {submission.status}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              {submission.deadline}
-            </TableCell>
-            <TableCell className="text-right">
-              {submission.grade || "-"}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button variant="outline" size="sm" onClick={() => handleViewSubmission(submission.id)}>
-                View Details
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
+        {submissions.map((submission) => {
+          const statusConfig = statusInfo[submission.status] || { icon: Clock, variant: 'outline' };
+          return (
+            <TableRow
+              key={submission.id}
+            >
+              <TableCell>
+                <div className="font-medium">{submission.title}</div>
+              </TableCell>
+              <TableCell>
+                <Badge variant={statusConfig.variant} className="gap-1">
+                  {React.createElement(statusConfig.icon, { className: "h-3 w-3" })}
+                  {submission.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {submission.deadline}
+              </TableCell>
+              <TableCell className="text-right">
+                {submission.grade || "-"}
+              </TableCell>
+              <TableCell className="text-right">
+                <Button variant="outline" size="sm" onClick={() => handleViewSubmission(submission.id)}>
+                  View Details
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
   );

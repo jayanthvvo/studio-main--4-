@@ -7,11 +7,11 @@ export interface Submission {
     uid?: string;
   };
   title: string;
-  status: "In Review" | "Complete" | "Needs Revision" | "Reviewed";
+  status: "In Review" | "Approved" | "Requires Revisions" | "Pending" | "Reviewed" | "Complete";
   submittedAt: string;
   deadline: string;
   grade: string | null;
-  content: string; // Changed back from fileUrl
+  content: string; 
   fileName: string;
   fileType: string;
   feedback: string | null;
