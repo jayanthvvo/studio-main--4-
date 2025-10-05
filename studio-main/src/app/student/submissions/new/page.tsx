@@ -12,28 +12,51 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+
+const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
 
 export default function NewSubmissionPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth(); // Get the authenticated user
+  const { user } = useAuth();
 
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        toast({
+          title: "File too large",
+          description: "Please select a file smaller than 16MB.",
+          variant: "destructive",
+        });
+        e.target.value = ""; // Clear the file input
+        setFile(null);
+      } else {
+        setFile(selectedFile);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !content || !user) return;
+    if (!title || !file || !user) return;
     
     setIsLoading(true);
 
     try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+
         const token = await user.getIdToken();
         const response = await fetch('/api/submissions', {
             method: 'POST',
@@ -41,7 +64,7 @@ export default function NewSubmissionPage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ title, content, deadline: "TBD" }), // You can enhance this to get a real deadline
+            body: JSON.stringify({ title, content: base64String, deadline: "TBD", fileName: file.name, fileType: file.type }),
         });
 
         if (!response.ok) {
@@ -55,6 +78,7 @@ export default function NewSubmissionPage() {
         });
 
         router.push("/student/dashboard");
+      };
 
     } catch (error: any) {
         toast({
@@ -78,7 +102,7 @@ export default function NewSubmissionPage() {
         <CardHeader>
           <CardTitle>New Submission</CardTitle>
           <CardDescription>
-            Submit your draft for review.
+            Upload your draft for review. The maximum file size is 16MB.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -95,19 +119,18 @@ export default function NewSubmissionPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="content">Content</Label>
-              <Textarea
-                id="content"
-                placeholder="Paste the content of your dissertation draft here..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
+              <Label htmlFor="file">Submission File</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={handleFileChange}
                 required
-                rows={15}
                 disabled={isLoading}
+                accept=".pdf,.doc,.docx"
               />
             </div>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+            <Button type="submit" disabled={isLoading || !file}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               Submit for Review
             </Button>
           </form>

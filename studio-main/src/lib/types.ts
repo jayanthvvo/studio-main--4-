@@ -7,12 +7,13 @@ export interface Submission {
     uid?: string;
   };
   title: string;
-  // **FIX: Add "Reviewed" to the list of possible statuses**
   status: "In Review" | "Complete" | "Needs Revision" | "Reviewed";
   submittedAt: string;
   deadline: string;
   grade: string | null;
-  content: string;
+  content: string; // Changed back from fileUrl
+  fileName: string;
+  fileType: string;
   feedback: string | null;
 }
 

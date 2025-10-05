@@ -11,27 +11,45 @@ import { SubmissionsTable } from "@/components/dashboard/submissions-table";
 import { useState, useEffect } from "react";
 import type { Submission } from "@/lib/types";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function SubmissionsPage() {
+  const { user } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
+
     const fetchSubmissions = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/submissions');
-        const data = await response.json();
-        // **FIX: Map _id to id for the frontend components**
+        setError(null);
+        const token = await user.getIdToken();
+        const response = await fetch('/api/submissions', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Failed to fetch submissions');
+        }
+
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : [];
         setSubmissions(data.map((s: any) => ({ ...s, id: s._id.toString() })));
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch submissions:", error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
     };
     fetchSubmissions();
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-6">
@@ -44,13 +62,18 @@ export default function SubmissionsPage() {
         <CardHeader>
           <CardTitle>Submissions</CardTitle>
           <CardDescription>
-            An overview of all dissertation drafts and proposals.
+            An overview of all dissertation drafts and proposals from your assigned students.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center items-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="text-red-500 p-8">
+              <p>Error loading submissions:</p>
+              <p>{error}</p>
             </div>
           ) : (
             <SubmissionsTable submissions={submissions} />

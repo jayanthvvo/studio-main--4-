@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, UserCircle } from "lucide-react";
+import { ArrowLeft, Loader2, UserCircle, Download } from "lucide-react";
 import { Submission } from "@/lib/types";
-import { ReviewForm } from "@/components/submission/review-form"; // <-- UNCOMMENTED
+import { ReviewForm } from "@/components/submission/review-form";
 import { Separator } from "@/components/ui/separator";
-// We'll keep these commented for now until we build the AI features
+// AI feature components are commented out as they are not the focus of this change.
 // import { SubmissionSummary } from "@/components/ai/submission-summary";
 // import { PlagiarismCheck } from "@/components/ai/plagiarism-check";
 
@@ -33,15 +33,16 @@ export default function SubmissionPage() {
     const fetchSubmission = async () => {
       try {
         setLoading(true);
+        // In a real app, this fetch should also be authenticated
         const response = await fetch(`/api/submissions/${id}`);
         if (!response.ok) {
-          throw new Error('Submission not found');
+          throw new Error('Submission not found or you do not have permission.');
         }
         const data = await response.json();
         setSubmission({ ...data, id: data._id });
       } catch (error) {
         console.error("Failed to fetch submission:", error);
-        router.push('/dashboard/submissions');
+        router.push('/dashboard'); // Redirect on error
       } finally {
         setLoading(false);
       }
@@ -75,10 +76,19 @@ export default function SubmissionPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="whitespace-pre-wrap">{submission.content}</p>
+              <Button asChild>
+                <a 
+                  href={submission.content} 
+                  download={submission.fileName}
+                  className="inline-flex items-center"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Submitted File
+                </a>
+              </Button>
             </CardContent>
           </Card>
-          <ReviewForm submission={submission} /> {/* <-- UNCOMMENTED */}
+          <ReviewForm submission={submission} />
         </div>
 
         <div className="space-y-6">
@@ -95,9 +105,9 @@ export default function SubmissionPage() {
               {submission.grade && <p className="mt-2 font-bold">Grade: {submission.grade}</p>}
             </CardContent>
           </Card>
-           {/* <SubmissionSummary submission={submission} /> */}
+           {/* <SubmissionSummary submissionContent={submission.content} /> */}
            <Separator />
-           {/* <PlagiarismCheck submission={submission} /> */}
+           {/* <PlagiarismCheck text={submission.content} /> */}
         </div>
       </div>
     </div>
