@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThesisFlowLogo } from "@/components/logo";
+// MODIFICATION: Import PlaceHolderImages
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,11 +19,13 @@ import { BookCopy, MessageSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ChatInterface } from "@/components/messaging/chat-interface";
 import { useMessaging } from "@/contexts/messaging-context";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function StudentHeader() {
   const studentAvatar = PlaceHolderImages.find(p => p.id === 'avatar-1')?.imageUrl ?? "https://picsum.photos/seed/1/100/100";
   const router = useRouter();
   const { isChatOpen, openChat, closeChat } = useMessaging();
+  const { displayName } = useAuth(); // Get the displayName
 
   const handleLogout = () => {
     router.push('/login');
@@ -64,7 +66,7 @@ export default function StudentHeader() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Alice Johnson</DropdownMenuLabel>
+            <DropdownMenuLabel>{displayName || 'Student Profile'}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>

@@ -1,3 +1,5 @@
+// src/app/register/supervisor/page.tsx
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,8 @@ import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function SupervisorRegisterPage() {
+  // MODIFICATION: Add state for the full name
+  const [fullName, setFullName] = useState("Dr. Evelyn Reed");
   const [email, setEmail] = useState("supervisor@supervisor.in");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +42,8 @@ export default function SupervisorRegisterPage() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'supervisor' }),
+        // MODIFICATION: Add displayName to the request body
+        body: JSON.stringify({ email, password, role: 'supervisor', displayName: fullName }),
       });
 
       const data = await response.json();
@@ -85,6 +90,19 @@ export default function SupervisorRegisterPage() {
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
+            {/* MODIFICATION: Add Full Name input field */}
+            <div className="grid gap-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="e.g., Dr. Evelyn Reed"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input

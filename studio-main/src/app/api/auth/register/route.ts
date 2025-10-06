@@ -1,8 +1,9 @@
+// src/app/api/auth/register/route.ts
+
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
-import { adminAuth } from '@/lib/firebase-admin'; // <-- Import from our new utility file
+import { adminAuth } from '@/lib/firebase-admin';
 
-// --- MongoDB Connection Setup ---
 const MONGODB_URI = process.env.MONGODB_URI;
 
 export async function POST(request: Request) {
@@ -12,24 +13,27 @@ export async function POST(request: Request) {
   }
   
   const client = new MongoClient(MONGODB_URI);
-  const { email, password, role } = await request.json();
+  // MODIFICATION: Add displayName to the destructured request body
+  const { email, password, role, displayName } = await request.json();
 
   if (role !== 'student' && role !== 'supervisor') {
     return NextResponse.json({ error: 'A valid role must be provided.' }, { status: 400 });
   }
-  if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password must be provided.' }, { status: 400 });
+  // MODIFICATION: Add validation for displayName
+  if (!email || !password || !displayName) {
+    return NextResponse.json({ error: 'Email, password, and full name must be provided.' }, { status: 400 });
   }
 
   try {
-    // Use the pre-initialized adminAuth instance
-    const userRecord = await adminAuth.createUser({ email, password });
+    // MODIFICATION: Add displayName to the user creation payload for Firebase Auth
+    const userRecord = await adminAuth.createUser({ email, password, displayName });
     
     const userProfile = {
       uid: userRecord.uid,
       email: userRecord.email,
       role: role,
-      displayName: "New User",
+      // MODIFICATION: Use the provided displayName
+      displayName: displayName,
       createdAt: new Date(),
     };
 

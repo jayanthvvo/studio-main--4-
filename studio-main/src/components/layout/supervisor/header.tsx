@@ -1,8 +1,14 @@
-
 "use client";
 
 import { Bell, PanelLeft, Search } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,21 +16,27 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarItems } from "./sidebar";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useRouter } from "next/navigation";
+// MODIFICATION: Import the useAuth hook
+import { useAuth } from "@/contexts/auth-context";
 
 export default function SupervisorHeader() {
-  const supervisorAvatar = PlaceHolderImages.find(p => p.id === 'supervisor-avatar')?.imageUrl ?? "https://picsum.photos/seed/5/100/100";
+  const supervisorAvatar =
+    PlaceHolderImages.find((p) => p.id === "supervisor-avatar")?.imageUrl ??
+    "https://picsum.photos/seed/5/100/100";
   const router = useRouter();
+  // MODIFICATION: Get the displayName from the auth context
+  const { displayName } = useAuth();
 
   const handleLogout = () => {
-    router.push('/login');
+    router.push("/login");
   };
-  
+
   const handleSettings = () => {
-    router.push('/dashboard/settings');
+    router.push("/dashboard/settings");
   };
 
   const handleProfile = () => {
-    router.push('/dashboard/profile');
+    router.push("/dashboard/profile");
   };
 
   return (
@@ -57,15 +69,26 @@ export default function SupervisorHeader() {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="overflow-hidden rounded-full h-9 w-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="overflow-hidden rounded-full h-9 w-9"
+          >
             <Avatar className="h-9 w-9">
-                <AvatarImage src={supervisorAvatar} alt="Supervisor" data-ai-hint="professor portrait" />
-                <AvatarFallback>S</AvatarFallback>
+              <AvatarImage
+                src={supervisorAvatar}
+                alt="Supervisor"
+                data-ai-hint="professor portrait"
+              />
+              <AvatarFallback>S</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Dr. Evelyn Reed</DropdownMenuLabel>
+          {/* MODIFICATION: Display the dynamic name */}
+          <DropdownMenuLabel>
+            {displayName || "Supervisor Profile"}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
           <DropdownMenuItem onClick={handleSettings}>Settings</DropdownMenuItem>

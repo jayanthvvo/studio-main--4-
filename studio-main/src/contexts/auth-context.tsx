@@ -15,6 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 interface AuthContextType {
   user: User | null;
   role: string | null;
+  displayName: string | null; // Add displayName to the context type
   loading: boolean;
 }
 
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null); // Add state for displayName
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,10 +35,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         setUser(user);
         
-        // A user is logged in. Get their ID token.
         const token = await user.getIdToken();
         try {
-          // Fetch the user's profile and role from our secure backend API.
           const response = await fetch('/api/me', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -46,20 +46,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (response.ok) {
             const userProfile = await response.json();
             setRole(userProfile.role || null);
+            setDisplayName(userProfile.displayName || null); // Set the displayName
           } else {
             console.error("Failed to fetch user profile, signing out.");
             setRole(null);
-            auth.signOut(); // Sign out if the profile is missing or invalid
+            setDisplayName(null); // Clear the displayName
+            auth.signOut();
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
           setRole(null);
+          setDisplayName(null); // Clear the displayName
           auth.signOut();
         }
       } else {
-        // No user is logged in. Clear the state.
         setUser(null);
         setRole(null);
+        setDisplayName(null); // Clear the displayName
       }
       setLoading(false);
     });
@@ -68,7 +71,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    // Add displayName to the provider value
+    <AuthContext.Provider value={{ user, role, displayName, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -88,7 +92,7 @@ export function ProtectedRoute({ children, requiredRole }: { children: ReactNode
     const pathname = usePathname();
 
     useEffect(() => {
-        if (loading) return; // Wait until authentication state is resolved
+        if (loading) return;
 
         if (!user) {
             router.push(`/login?redirect=${pathname}`); 
@@ -96,7 +100,6 @@ export function ProtectedRoute({ children, requiredRole }: { children: ReactNode
         }
 
         if (role !== requiredRole) {
-            // If the role doesn't match, redirect to a generic login page
             router.push('/login');
             return;
         }

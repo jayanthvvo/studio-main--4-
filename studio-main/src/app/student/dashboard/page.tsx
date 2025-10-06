@@ -16,34 +16,49 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
 export default function StudentDashboardPage() {
-  const { user } = useAuth();
+  const { user, displayName } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState<string | null>(null); // State to hold error messages
+
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
       setLoading(true);
+      setError(null); // Reset error state on new fetch
       try {
         const token = await user.getIdToken();
         const headers = { 'Authorization': `Bearer ${token}` };
 
-        // Fetch student-specific submissions from the new API route
+        // --- MODIFICATION START ---
+        // Fetch student-specific submissions with proper error checking
         const submissionsRes = await fetch('/api/my-submissions', { headers });
+
+        if (!submissionsRes.ok) {
+          const errorData = await submissionsRes.json();
+          throw new Error(errorData.error || "Failed to fetch submissions.");
+        }
+
         const submissionsData = await submissionsRes.json();
-        // **FIX: Map _id to id**
         setSubmissions(submissionsData.map((s: any) => ({ ...s, id: s._id.toString() })));
         
         // Fetch student-specific milestones
         const milestonesRes = await fetch('/api/milestones', { headers }); // Assuming /api/milestones is also secured
-        const milestonesData = await milestonesRes.json();
-        // **FIX: Map _id to id**
-        setMilestones(milestonesData.map((m: any) => ({ ...m, id: m._id.toString() })));
+        
+        if (!milestonesRes.ok) {
+            const errorData = await milestonesRes.json();
+            throw new Error(errorData.error || "Failed to fetch milestones.");
+        }
 
-      } catch (error) {
+        const milestonesData = await milestonesRes.json();
+        setMilestones(milestonesData.map((m: any) => ({ ...m, id: m._id.toString() })));
+        // --- MODIFICATION END ---
+
+      } catch (error: any) {
         console.error("Failed to fetch dashboard data:", error);
+        setError(error.message); // Set the error state to display it in the UI
       } finally {
         setLoading(false);
       }
@@ -61,7 +76,7 @@ export default function StudentDashboardPage() {
         <div className="flex flex-col">
           <h1 className="text-3xl font-bold font-headline">My Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back. Track and manage your dissertation.
+            Welcome back, {displayName || 'Student'}. Track and manage your dissertation.
           </p>
         </div>
       </div>
@@ -100,6 +115,11 @@ export default function StudentDashboardPage() {
           {loading ? (
             <div className="flex justify-center items-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? ( // --- MODIFICATION: Display error message ---
+            <div className="text-red-500 p-4 text-center">
+              <p>Could not load your submissions.</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
             </div>
           ) : (
             <StudentSubmissionsTable submissions={submissions} />
