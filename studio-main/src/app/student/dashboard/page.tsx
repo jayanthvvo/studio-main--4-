@@ -15,6 +15,7 @@ import { PlusCircle, Loader2, BookCheck, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 export default function StudentDashboardPage() {
   const { user, displayName } = useAuth();
@@ -22,23 +23,19 @@ export default function StudentDashboardPage() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchData = async () => {
+  const fetchData = async () => {
+      if (!user) return;
       setLoading(true);
       setError(null);
       try {
         const token = await user.getIdToken();
         const headers = { Authorization: `Bearer ${token}` };
-
-        // Fetch both milestones and submissions
         const [milestonesRes, submissionsRes] = await Promise.all([
             fetch("/api/milestones", { headers }),
             fetch("/api/my-submissions", { headers })
         ]);
-
         if (!milestonesRes.ok) {
           const errorData = await milestonesRes.json();
           throw new Error(errorData.error || "Failed to fetch milestones.");
@@ -47,7 +44,6 @@ export default function StudentDashboardPage() {
         setMilestones(
           milestonesData.map((m: any) => ({ ...m, id: m._id.toString() }))
         );
-
         if (!submissionsRes.ok) {
           const errorData = await submissionsRes.json();
           throw new Error(errorData.error || "Failed to fetch submissions.");
@@ -56,9 +52,7 @@ export default function StudentDashboardPage() {
         setSubmissions(
           submissionsData.map((s: any) => ({ ...s, id: s._id.toString() }))
         );
-
-      } catch (error: any)
-      {
+      } catch (error: any) {
         console.error("Failed to fetch dashboard data:", error);
         setError(error.message);
       } finally {
@@ -66,20 +60,47 @@ export default function StudentDashboardPage() {
       }
     };
 
+  useEffect(() => {
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // --- MODIFICATION: New filtering logic ---
-  // An actionable milestone is one that is 'In Progress' and has a set due date.
+  const handleDeleteSubmission = async (submissionId: string) => {
+    if (!user) return;
+    try {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/submissions/${submissionId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to delete submission.");
+        }
+        
+        toast({
+            title: "Success",
+            description: "Your submission has been deleted.",
+        });
+
+        await fetchData();
+
+    } catch (err: any) {
+        toast({
+            title: "Error",
+            description: err.message,
+            variant: "destructive",
+        });
+    }
+  };
+
   const actionableMilestone = milestones.find(
     (m) => m.status === "In Progress" && m.dueDate !== "TBD"
   );
-
-  // Completed milestones are those with a 'Complete' status.
   const completedMilestones = milestones.filter(
     (m) => m.status === "Complete"
   );
-  // --- END MODIFICATION ---
 
   return (
     <div className="space-y-6">
@@ -92,8 +113,7 @@ export default function StudentDashboardPage() {
           </p>
         </div>
       </div>
-
-      {/* --- MODIFICATION: This card now ONLY shows the current actionable milestone --- */}
+      
       {actionableMilestone && (
         <Card className="bg-primary/10 border-primary/40">
             <CardHeader>
@@ -120,55 +140,48 @@ export default function StudentDashboardPage() {
             </CardContent>
         </Card>
       )}
-      {/* --- END MODIFICATION --- */}
 
-
-      {/* --- MODIFICATION: New card for COMPLETED milestones --- */}
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-                <CheckCircle className="h-6 w-6 text-green-500" />
-                Completed Milestones
-            </CardTitle>
-            <CardDescription>
-                You have successfully submitted the following milestones.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            {loading ? (
-                 <div className="flex justify-center items-center p-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-            ) : completedMilestones.length > 0 ? (
-                <div className="space-y-4">
-                    {completedMilestones.map((milestone, index) => (
-                        <div key={milestone.id}>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-semibold text-green-600">{milestone.title}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Submitted and accepted.
-                                    </p>
+      {completedMilestones.length > 0 && (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                    <CheckCircle className="h-6 w-6 text-green-500" />
+                    Completed Milestones
+                </CardTitle>
+                <CardDescription>
+                    You have successfully submitted the following milestones.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="flex justify-center items-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {completedMilestones.map((milestone, index) => (
+                            <div key={milestone.id}>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="font-semibold text-green-600">{milestone.title}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Submitted and accepted.
+                                        </p>
+                                    </div>
+                                    <Button variant="outline" asChild>
+                                        <Link href={`/student/submissions/${milestone.submissionId}`}>
+                                            View Submission
+                                        </Link>
+                                    </Button>
                                 </div>
-                                <Button variant="outline" asChild>
-                                    <Link href={`/student/submissions/${milestone.submissionId}`}>
-                                        View Submission
-                                    </Link>
-                                </Button>
+                                {index < completedMilestones.length - 1 && <Separator className="mt-4" />}
                             </div>
-                            {index < completedMilestones.length - 1 && <Separator className="mt-4" />}
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <p className="text-center text-muted-foreground p-4">
-                    You have not submitted any milestones yet.
-                </p>
-            )}
-        </CardContent>
-      </Card>
-      {/* --- END MODIFICATION --- */}
-
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -188,7 +201,7 @@ export default function StudentDashboardPage() {
               <p className="text-sm text-muted-foreground">{error}</p>
             </div>
           ) : (
-            <StudentSubmissionsTable submissions={submissions} />
+            <StudentSubmissionsTable submissions={submissions} onDelete={handleDeleteSubmission} />
           )}
         </CardContent>
       </Card>

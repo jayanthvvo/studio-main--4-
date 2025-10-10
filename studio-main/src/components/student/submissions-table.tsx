@@ -1,9 +1,7 @@
+// src/components/student/submissions-table.tsx
+
 "use client";
 
-import React from "react";
-import { useRouter } from "next/navigation";
-import { CheckCircle, Clock, AlertCircle, FileSearch } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -12,72 +10,105 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Submission } from "@/lib/types";
-import { Button } from "../ui/button";
-import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-const statusInfo: { [key: string]: { icon: React.ElementType, variant: "default" | "secondary" | "destructive" | "outline" } } = {
-  Approved: { icon: CheckCircle, variant: "default" },
-  "In Review": { icon: FileSearch, variant: "secondary" },
-  "Requires Revisions": { icon: AlertCircle, variant: "destructive" },
-  Pending: { icon: Clock, variant: "outline" },
-  Reviewed: { icon: CheckCircle, variant: "default" },
-  Complete: { icon: CheckCircle, variant: "default" },
-};
 
-export function StudentSubmissionsTable({ submissions }: { submissions: Submission[] }) {
+// MODIFICATION: Add onDelete prop
+interface SubmissionsTableProps {
+  submissions: Submission[];
+  onDelete: (submissionId: string) => Promise<void>;
+}
+
+export function StudentSubmissionsTable({ submissions, onDelete }: SubmissionsTableProps) {
   const router = useRouter();
 
-  const handleViewSubmission = (id: string) => {
-    router.push(`/student/submissions/${id}`);
-  };
-
+  if (submissions.length === 0) {
+    return <p className="text-center text-muted-foreground p-4">You have not made any submissions yet.</p>;
+  }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Title</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Deadline</TableHead>
-          <TableHead className="text-right">Grade</TableHead>
-          <TableHead>
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {submissions.map((submission) => {
-          const statusConfig = statusInfo[submission.status] || { icon: Clock, variant: 'outline' };
-          return (
-            <TableRow
-              key={submission.id}
-            >
-              <TableCell>
-                <div className="font-medium">{submission.title}</div>
-              </TableCell>
-              <TableCell>
-                <Badge variant={statusConfig.variant} className="gap-1">
-                  {React.createElement(statusConfig.icon, { className: "h-3 w-3" })}
-                  {submission.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {submission.deadline}
-              </TableCell>
-              <TableCell className="text-right">
-                {submission.grade || "-"}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button variant="outline" size="sm" onClick={() => handleViewSubmission(submission.id)}>
-                  View Details
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </TableCell>
+    <AlertDialog>
+        <Table>
+        <TableHeader>
+            <TableRow>
+            <TableHead>Title</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Submitted On</TableHead>
+            <TableHead>Grade</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+            {submissions.map((submission) => (
+            <TableRow key={submission.id}>
+                <TableCell className="font-medium">{submission.title}</TableCell>
+                <TableCell>
+                <Badge variant={submission.status === "Reviewed" ? "default" : "secondary"}>
+                    {submission.status}
+                </Badge>
+                </TableCell>
+                <TableCell>{new Date(submission.submittedAt).toLocaleDateString()}</TableCell>
+                <TableCell>{submission.grade ?? "N/A"}</TableCell>
+                <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => router.push(`/student/submissions/${submission.id}`)}>
+                            View Details
+                        </DropdownMenuItem>
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-red-500 focus:text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete your
+                            submission and revert the milestone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(submission.id)}>
+                                Continue
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </TableCell>
+            </TableRow>
+            ))}
+        </TableBody>
+        </Table>
+    </AlertDialog>
   );
 }
