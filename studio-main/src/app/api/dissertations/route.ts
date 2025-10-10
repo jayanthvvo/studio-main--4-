@@ -1,9 +1,11 @@
+// src/app/api/dissertations/route.ts
+
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { adminAuth } from '@/lib/firebase-admin';
 import { ObjectId } from 'mongodb';
 
-// GET all dissertations with populated student and supervisor info
+// CORRECTED GET function to fetch all dissertation projects
 export async function GET(request: Request) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -15,13 +17,14 @@ export async function GET(request: Request) {
         const decodedToken = await adminAuth.verifyIdToken(token);
         const client = await clientPromise;
         const db = client.db("thesisFlowDB");
-        const adminUser = await db.collection("users").findOne({ uid: decodedToken.uid });
 
+        // Authorization: Check if the user is an admin
+        const adminUser = await db.collection("users").findOne({ uid: decodedToken.uid });
         if (!adminUser || adminUser.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // Use MongoDB's aggregation pipeline to join collections
+        // This aggregation pipeline joins dissertations with student and supervisor info
         const dissertations = await db.collection("dissertations").aggregate([
             {
                 $lookup: {
@@ -40,33 +43,39 @@ export async function GET(request: Request) {
                 }
             },
             {
-                $unwind: "$studentInfo" // Deconstruct the array from the lookup
+                $unwind: { path: "$studentInfo", preserveNullAndEmptyArrays: true }
             },
             {
-                $unwind: "$supervisorInfo"
+                $unwind: { path: "$supervisorInfo", preserveNullAndEmptyArrays: true }
             },
             {
-                $project: { // Select and rename fields for the final output
+                $project: {
                     _id: 1,
                     title: 1,
                     status: 1,
                     createdAt: 1,
-                    studentName: "$studentInfo.displayName",
-                    supervisorName: "$supervisorInfo.displayName"
+                    student: {
+                        _id: "$studentInfo._id",
+                        name: "$studentInfo.displayName",
+                    },
+                    supervisor: {
+                        _id: "$supervisorInfo._id",
+                        name: "$supervisorInfo.displayName",
+                    }
                 }
             }
         ]).toArray();
-        
+
         return NextResponse.json(dissertations);
 
     } catch (error) {
-        console.error("Failed to fetch dissertations:", error);
-        return NextResponse.json({ error: 'Failed to fetch dissertations' }, { status: 500 });
+        console.error("!!!!!!!!!! FAILED TO FETCH DISSERTATIONS !!!!!!!!!!:", error);
+        return NextResponse.json({ error: 'Failed to fetch dissertation projects' }, { status: 500 });
     }
 }
 
 
-// POST function to create a new dissertation (remains the same)
+// POST function to create a new dissertation project
 export async function POST(request: Request) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -90,21 +99,46 @@ export async function POST(request: Request) {
         if (!title || !studentId || !supervisorId) {
             return NextResponse.json({ error: 'Title, studentId, and supervisorId are required.' }, { status: 400 });
         }
+        
+        const studentObjectId = new ObjectId(studentId);
+        const supervisorObjectId = new ObjectId(supervisorId);
 
         const newDissertation = {
             title,
-            studentId: new ObjectId(studentId),
-            supervisorId: new ObjectId(supervisorId),
+            studentId: studentObjectId,
+            supervisorId: supervisorObjectId,
             status: 'In Progress',
             createdAt: new Date(),
         };
-
         const result = await db.collection("dissertations").insertOne(newDissertation);
+        const dissertationId = result.insertedId;
+
+        if (dissertationId) {
+            const milestoneTemplate = [
+                { title: 'Dissertation Proposal', status: 'Pending' },
+                { title: 'Chapter 1: Introduction', status: 'Upcoming' },
+                { title: 'Chapter 2: Literature Review', status: 'Upcoming' },
+                { title: 'Chapter 3: Methodology', status: 'Upcoming' },
+                { title: 'Chapter 4: Results & Analysis', status: 'Upcoming' },
+                { title: 'Final Draft Submission', status: 'Upcoming' },
+            ];
+            
+            const milestonesToInsert = milestoneTemplate.map(milestone => ({
+                dissertationId: dissertationId,
+                studentId: studentObjectId,
+                title: milestone.title,
+                status: milestone.status,
+                dueDate: 'TBD',
+                submissionId: null,
+            }));
+
+            await db.collection("milestones").insertMany(milestonesToInsert);
+        }
         
-        return NextResponse.json({ ...newDissertation, _id: result.insertedId }, { status: 201 });
+        return NextResponse.json({ ...newDissertation, _id: dissertationId }, { status: 201 });
 
     } catch (error) {
-        console.error("!!!!!!!!!! DISSERTATION API ERROR !!!!!!!!!!:", error);
-        return NextResponse.json({ error: 'Failed to create dissertation' }, { status: 500 });
+        console.error("!!!!!!!!!! DISSERTATION CREATION ERROR !!!!!!!!!!:", error);
+        return NextResponse.json({ error: 'Failed to create dissertation project' }, { status: 500 });
     }
 }
