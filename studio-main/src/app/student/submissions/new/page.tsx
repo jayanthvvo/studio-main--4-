@@ -1,7 +1,7 @@
-'use client';
+// src/app/student/submissions/new/page.tsx
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,126 +12,171 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
-import { ArrowLeft, Send, Loader2, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
-
-const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
+import { useToast } from "@/hooks/use-toast";
+import { Milestone } from "@/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, FormEvent, useEffect } from "react";
 
 export default function NewSubmissionPage() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user } = useAuth();
-
-  const [title, setTitle] = useState("");
+  const [actionableMilestone, setActionableMilestone] = useState<Milestone | null>(null);
+  const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMilestones, setLoadingMilestones] = useState(true);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      if (selectedFile.size > MAX_FILE_SIZE) {
-        toast({
-          title: "File too large",
-          description: "Please select a file smaller than 16MB.",
-          variant: "destructive",
-        });
-        e.target.value = ""; // Clear the file input
-        setFile(null);
-      } else {
-        setFile(selectedFile);
-      }
-    }
-  };
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchActionableMilestone = async () => {
+        setLoadingMilestones(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/milestones', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error("Could not fetch your current milestone.");
+            }
+            const allMilestones: Milestone[] = await response.json();
+            const nextMilestone = allMilestones.find(m => m.status === 'In Progress');
+
+            if (nextMilestone) {
+                setActionableMilestone(nextMilestone);
+            } else {
+                setError("You have no active milestones awaiting submission.");
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoadingMilestones(false);
+        }
+    };
+
+    fetchActionableMilestone();
+  }, [user]);
+
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title || !file || !user) return;
+    if (!user || !actionableMilestone) {
+      setError("Cannot submit: No active milestone found.");
+      return;
+    }
     
     setIsLoading(true);
+    setError(null);
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
+      const token = await user.getIdToken();
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        // --- MODIFICATION: Title is no longer sent to the backend ---
+        body: JSON.stringify({
+          content,
+          fileName: file?.name,
+          fileType: file?.type,
+        }),
+      });
 
-        const token = await user.getIdToken();
-        const response = await fetch('/api/submissions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ title, content: base64String, deadline: "TBD", fileName: file.name, fileType: file.type }),
-        });
+      const data = await response.json();
 
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to create submission.");
-        }
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create submission.');
+      }
 
-        toast({
-          title: "Submission Successful!",
-          description: `Your draft "${title}" has been submitted.`,
-        });
-
-        router.push("/student/dashboard");
-      };
+      toast({
+        title: "Submission Successful",
+        description: `Your submission for "${actionableMilestone.title}" has been received.`,
+      });
+      router.push('/student/dashboard');
 
     } catch (error: any) {
-        toast({
-            title: "Submission Failed",
-            description: error.message || "An unexpected error occurred.",
-            variant: "destructive",
-        });
+      console.error("Submission Error:", error);
+      setError(error.message);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
+
+  if (loadingMilestones) {
+    return (
+        <div className="flex justify-center items-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-        <Link href="/student/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-        </Link>
-
-      <Card className="max-w-3xl mx-auto">
+      <Card>
         <CardHeader>
           <CardTitle>New Submission</CardTitle>
           <CardDescription>
-            Upload your draft for review. The maximum file size is 16MB.
+            Submit your work for the next milestone in your dissertation.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+                <Alert variant="destructive">
+                    <AlertTitle>Submission Failed</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Chapter 1: Introduction Draft"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                <Label htmlFor="milestone-title">Milestone</Label>
+                <Input
+                    id="milestone-title"
+                    type="text"
+                    readOnly
+                    value={actionableMilestone?.title || 'No active milestone'}
+                    className="font-semibold"
+                />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="content">Your Comments</Label>
+              <Textarea
+                id="content"
+                placeholder="Add any comments for your supervisor here..."
                 required
-                disabled={isLoading}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                disabled={isLoading || !actionableMilestone}
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="file">Submission File</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={handleFileChange}
-                required
-                disabled={isLoading}
-                accept=".pdf,.doc,.docx"
-              />
+              <Label htmlFor="file">Upload File (Optional)</Label>
+               <div className="flex items-center gap-2">
+                    <Input
+                        id="file"
+                        type="file"
+                        onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                        disabled={isLoading || !actionableMilestone}
+                        className="flex-grow"
+                    />
+               </div>
+               {file && <p className="text-sm text-muted-foreground">Selected: {file.name}</p>}
             </div>
-            <Button type="submit" disabled={isLoading || !file}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              Submit for Review
+
+            <Button type="submit" className="w-full" disabled={isLoading || !actionableMilestone}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit Milestone
             </Button>
           </form>
         </CardContent>
