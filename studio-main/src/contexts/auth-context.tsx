@@ -15,7 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 interface AuthContextType {
   user: User | null;
   role: string | null;
-  displayName: string | null; // Add displayName to the context type
+  displayName: string | null;
   loading: boolean;
 }
 
@@ -24,8 +24,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null); // Add state for displayName
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter(); 
 
   useEffect(() => {
     const auth = getAuth(app);
@@ -46,32 +47,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (response.ok) {
             const userProfile = await response.json();
             setRole(userProfile.role || null);
-            setDisplayName(userProfile.displayName || null); // Set the displayName
+            setDisplayName(userProfile.displayName || null);
           } else {
             console.error("Failed to fetch user profile, signing out.");
             setRole(null);
-            setDisplayName(null); // Clear the displayName
+            setDisplayName(null);
             auth.signOut();
+            router.push('/login');
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
           setRole(null);
-          setDisplayName(null); // Clear the displayName
+          setDisplayName(null);
           auth.signOut();
+          router.push('/login');
         }
       } else {
         setUser(null);
         setRole(null);
-        setDisplayName(null); // Clear the displayName
+        setDisplayName(null);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]); // router is stable here
 
   return (
-    // Add displayName to the provider value
     <AuthContext.Provider value={{ user, role, displayName, loading }}>
       {children}
     </AuthContext.Provider>
@@ -100,11 +102,16 @@ export function ProtectedRoute({ children, requiredRole }: { children: ReactNode
         }
 
         if (role !== requiredRole) {
-            router.push('/login');
+            // Redirect to a more appropriate page, or a generic access denied page
+            if (role === 'student') router.push('/student/dashboard');
+            else if (role === 'supervisor') router.push('/dashboard');
+            else router.push('/login');
             return;
         }
 
-    }, [user, role, loading, router, requiredRole, pathname]);
+    // --- MODIFICATION: Removed `router` from the dependency array ---
+    }, [user, role, loading, requiredRole, pathname]);
+    // --- END MODIFICATION ---
 
     if (loading || !user || role !== requiredRole) {
         return (

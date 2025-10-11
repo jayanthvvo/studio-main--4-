@@ -1,40 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/auth-context'; // Import useAuth
+import { Submission } from '@/lib/types';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useParams, useRouter } from 'next/navigation';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, UserCircle, Download } from "lucide-react";
-import { Submission } from "@/lib/types";
-import { ReviewForm } from "@/components/submission/review-form";
-import { Separator } from "@/components/ui/separator";
-// AI feature components are commented out as they are not the focus of this change.
-// import { SubmissionSummary } from "@/components/ai/submission-summary";
-// import { PlagiarismCheck } from "@/components/ai/plagiarism-check";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ReviewForm } from '@/components/submission/review-form';
+import SubmissionSummary from "@/components/ai/submission-summary";
+import PlagiarismCheck from "@/components/ai/plagiarism-check";
 
 export default function SubmissionPage() {
   const params = useParams();
   const id = params.id as string; 
   
+  const { user } = useAuth(); // Get the user from the auth context
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (!id) return;
+    // --- MODIFICATION: Make sure we have a user before fetching ---
+    if (!id || !user) return;
 
     const fetchSubmission = async () => {
       try {
         setLoading(true);
-        // In a real app, this fetch should also be authenticated
-        const response = await fetch(`/api/submissions/${id}`);
+        const token = await user.getIdToken(); // Get the auth token
+        const response = await fetch(`/api/submissions/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}` // Add the token to the request
+            }
+        });
         if (!response.ok) {
           throw new Error('Submission not found or you do not have permission.');
         }
@@ -42,14 +43,14 @@ export default function SubmissionPage() {
         setSubmission({ ...data, id: data._id });
       } catch (error) {
         console.error("Failed to fetch submission:", error);
-        router.push('/dashboard'); // Redirect on error
+        router.push('/dashboard'); 
       } finally {
         setLoading(false);
       }
     };
 
     fetchSubmission();
-  }, [id, router]);
+  }, [id, router, user]); // Add user to dependency array
 
   if (loading || !submission) {
     return (
@@ -76,38 +77,40 @@ export default function SubmissionPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild>
-                <a 
-                  href={submission.content} 
-                  download={submission.fileName}
-                  className="inline-flex items-center"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Submitted File
-                </a>
-              </Button>
+              <p className="whitespace-pre-wrap">{submission.content}</p>
             </CardContent>
           </Card>
           <ReviewForm submission={submission} />
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-4">
-               <UserCircle className="h-10 w-10 text-muted-foreground" />
-               <div>
-                  <CardTitle>{submission.student.name}</CardTitle>
-                  <CardDescription>Student</CardDescription>
-               </div>
-            </CardHeader>
-            <CardContent>
-              <Badge>{submission.status}</Badge>
-              {submission.grade && <p className="mt-2 font-bold">Grade: {submission.grade}</p>}
-            </CardContent>
-          </Card>
-           {/* <SubmissionSummary submissionContent={submission.content} /> */}
-           <Separator />
-           {/* <PlagiarismCheck text={submission.content} /> */}
+            <Card>
+                <CardHeader className="flex flex-row items-center gap-4">
+                    <Avatar>
+                        <AvatarImage src={submission.student.avatarUrl} alt={submission.student.name} />
+                        <AvatarFallback>{submission.student.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <CardTitle>{submission.student.name}</CardTitle>
+                        <CardDescription>Student</CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                <Badge>{submission.status}</Badge>
+                {submission.grade && <p className="mt-2 font-bold">Grade: {submission.grade}</p>}
+                </CardContent>
+            </Card>
+
+           <Card>
+             <CardHeader>
+                <CardTitle>AI Analysis</CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-4">
+                <SubmissionSummary submissionContent={submission.content} />
+                <Separator />
+                <PlagiarismCheck text={submission.content} />
+             </CardContent>
+           </Card>
         </div>
       </div>
     </div>
