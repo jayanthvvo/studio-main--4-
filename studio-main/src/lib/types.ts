@@ -1,3 +1,4 @@
+// src/lib/types.ts
 export interface Submission {
   id: string;
   _id?: any; // For MongoDB ObjectId
@@ -28,7 +29,8 @@ export interface Milestone {
 
 export interface Message {
   id: string;
+  _id?: any;
   sender: 'student' | 'supervisor';
   text: string;
-  timestamp: string;
+  timestamp: Date;
 }

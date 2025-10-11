@@ -1,4 +1,5 @@
-import { Submission, Message, Milestone } from '@/lib/types';
+// src/lib/data.ts
+import { Submission, Milestone } from '@/lib/types';
 
 export const submissions: Submission[] = [
   {
@@ -14,6 +15,8 @@ export const submissions: Submission[] = [
     submittedAt: '2024-07-20',
     content: `Abstract: This dissertation explores the multifaceted impact of artificial intelligence on contemporary literary creation and consumption, examining both generative text models and analytical tools. It argues that while AI presents challenges to traditional notions of authorship, it also opens up new avenues for narrative experimentation and critical inquiry. The study analyzes works from pioneering digital artists and authors who have integrated AI into their creative process, highlighting the evolution of storytelling in the digital age. Furthermore, it discusses the ethical implications and the future role of human creativity in an increasingly automated world. The conclusion posits that AI, rather than replacing human authors, can serve as a collaborative partner, augmenting and expanding the boundaries of literary expression.`,
     feedback: 'Excellent work, Alice. Your analysis is thorough and well-supported. Minor revisions on chapter 3 would be beneficial.',
+    fileName: 'chapter1.pdf',
+    fileType: 'application/pdf',
   },
   {
     id: '2',
@@ -28,6 +31,8 @@ export const submissions: Submission[] = [
     submittedAt: '2024-08-10',
     content: `Introduction: Quantum computing represents a paradigm shift in computational theory, promising to solve complex problems that are intractable for classical computers. This dissertation provides a comprehensive theoretical framework for understanding quantum algorithms and their potential applications. It begins with an overview of quantum mechanics, including superposition and entanglement, before delving into the mathematics of qubits and quantum gates. Key algorithms such as Shor's algorithm for factoring and Grover's algorithm for searching are analyzed in detail. The paper also explores the challenges in building a scalable quantum computer, including decoherence and error correction. Finally, it speculates on the future impact of quantum computing on fields ranging from cryptography to materials science, offering a roadmap for future research in this burgeoning field.`,
     feedback: null,
+    fileName: 'quantum_framework.docx',
+    fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   },
   {
     id: '3',
@@ -42,6 +47,8 @@ export const submissions: Submission[] = [
     submittedAt: '2024-07-15',
     content: `Chapter 1: The Medici family was instrumental in the flourishing of Renaissance art in Florence. Their patronage supported artists like Michelangelo and Leonardo da Vinci, enabling the creation of masterpieces that defined an era. This dissertation examines the complex relationship between patrons and artists during the Italian Renaissance, arguing that patronage was not merely financial support but a dynamic interplay of power, ambition, and artistic vision. It analyzes how the specific demands and tastes of patrons shaped the subject matter, style, and scale of artworks. Case studies of the Medici, the Sforza, and the Papacy illustrate different models of patronage and their impact on artistic production. The study concludes that understanding the patronage system is essential to fully appreciating the context and meaning of Renaissance art.`,
     feedback: 'Your research is promising, but the central thesis needs to be clearer. Please revise chapters 2 and 4 based on my comments.',
+    fileName: 'renaissance_patronage.pdf',
+    fileType: 'application/pdf',
   },
   {
     id: '4',
@@ -56,6 +63,8 @@ export const submissions: Submission[] = [
     submittedAt: '',
     content: `Proposal: This dissertation aims to analyze and compare sustainable urban development strategies in three major megacities: Tokyo, Mexico City, and Lagos. The research will focus on key areas such as public transportation, waste management, green infrastructure, and housing policy. By employing a mixed-methods approach, including policy analysis, statistical data, and case studies, this study seeks to identify best practices and common challenges in achieving urban sustainability. The expected outcome is a set of policy recommendations that can be adapted to other rapidly growing urban centers around the world. The research will contribute to the broader academic discourse on urban planning and environmental science, providing valuable insights for policymakers and urban developers.`,
     feedback: null,
+    fileName: '',
+    fileType: '',
   },
    {
     id: '5',
@@ -70,14 +79,9 @@ export const submissions: Submission[] = [
     submittedAt: '2024-09-01',
     content: 'This is the literature review for my dissertation on the impact of AI on modern literature.',
     feedback: null,
+    fileName: 'chapter2_lit_review.docx',
+    fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   }
-];
-
-export const messages: Message[] = [
-    { id: '1', sender: 'student', text: 'Good morning, Professor. I have a question about the feedback on Chapter 2.', timestamp: '10:00 AM' },
-    { id: '2', sender: 'supervisor', text: 'Of course, Alice. I felt your argument could be strengthened with more recent sources. Could you look into the works of Smith (2023)?', timestamp: '10:02 AM' },
-    { id: '3', sender: 'student', text: 'That makes sense. I will look for it. Thank you!', timestamp: '10:05 AM' },
-    { id: '4', sender: 'supervisor', text: 'You\'re welcome. Let me know if you need help finding it.', timestamp: '10:06 AM' },
 ];
 
 export const milestones: Milestone[] = [

@@ -1,4 +1,4 @@
-
+// src/components/messaging/chat-interface.tsx
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -104,7 +104,7 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
           ) : (
             messages.map((message) => (
               <div
-                key={message.id}
+                key={message.id || message._id}
                 className={cn(
                   "flex items-end gap-2",
                   message.sender === selfSender ? "justify-end" : ""
@@ -125,7 +125,7 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
                   )}
                 >
                   <p>{message.text}</p>
-                  <p className={cn("text-xs mt-1 text-right", message.sender === selfSender ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{message.timestamp}</p>
+                  <p className={cn("text-xs mt-1 text-right", message.sender === selfSender ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
                 {message.sender === selfSender && (
                   <Avatar className="h-8 w-8">
