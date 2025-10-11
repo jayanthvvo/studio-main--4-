@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -8,19 +7,20 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
+  CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThesisFlowLogo } from "@/components/logo";
 import Link from "next/link";
 import { useState, FormEvent } from "react";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import React from "react"; // Import React
 
 export default function StudentLoginPage() {
   const [email, setEmail] = useState("student@presidencyuniversity.in");
@@ -34,37 +34,50 @@ export default function StudentLoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
-    const auth = getAuth(app);
     try {
+      const auth = getAuth(app);
       await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
       router.push("/student/dashboard");
     } catch (error: any) {
-      console.error("Firebase Auth Error:", error);
-      let errorMessage = "An unknown error occurred.";
-       switch (error.code) {
-        case 'auth/invalid-credential':
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-              errorMessage = "Invalid email or password. Please try again.";
-              break;
-          case 'auth/invalid-email':
-              errorMessage = "The email address is not valid.";
-              break;
-          default:
-              errorMessage = "Failed to log in. Please try again later.";
-              break;
-      }
-      setError(errorMessage);
+      console.error("Login Error:", error);
+      setError("Invalid email or password. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- MODIFICATION: Accept the event and add console logs ---
+  const handlePasswordReset = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); // This is the crucial line to prevent page reload
+    console.log("Forgot Password clicked. Attempting to send reset email to:", email);
+
+    if (!email) {
+        console.log("Email field is empty.");
+        toast({
+            title: "Email Required",
+            description: "Please enter your email address to reset your password.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    const auth = getAuth(app);
+    try {
+        await sendPasswordResetEmail(auth, email);
+        console.log("Firebase password reset email sent successfully.");
+        toast({
+            title: "Password Reset Email Sent",
+            description: "Check your inbox for a link to reset your password.",
+        });
+    } catch (error: any) {
+        console.error("Password Reset Error:", error);
+        toast({
+            title: "Error Sending Reset Email",
+            description: `Firebase error: ${error.code} - ${error.message}`,
+            variant: "destructive",
+        });
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -76,19 +89,19 @@ export default function StudentLoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Student Login</CardTitle>
           <CardDescription>
-            Enter your student credentials to log in. <br/> Use an email ending in @presidencyuniversity.in
+            Enter your credentials to access your dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="grid gap-4" suppressHydrationWarning>
-             {error && (
+            {error && (
                 <Alert variant="destructive">
                     <AlertTitle>Login Failed</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="email">Student Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -102,12 +115,6 @@ export default function StudentLoginPage() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Forgot your password?
-                </Link>
               </div>
               <Input 
                 id="password" 
@@ -117,6 +124,12 @@ export default function StudentLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
               />
+              <div className="text-right">
+                  {/* --- MODIFICATION: Pass the event to the handler --- */}
+                  <Button variant="link" size="sm" onClick={handlePasswordReset} type="button" className="p-0 h-auto">
+                      Forgot Password?
+                  </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -124,8 +137,8 @@ export default function StudentLoginPage() {
             </Button>
           </form>
         </CardContent>
-         <CardFooter className="text-center text-sm text-muted-foreground justify-center">
-            Don't have an account? <Button variant="link" asChild className="p-1"><Link href="/register/student">Register</Link></Button>
+        <CardFooter className="text-center text-sm text-muted-foreground justify-center">
+            Don&apos;t have an account? <Button variant="link" asChild className="p-1"><Link href="/register/student">Register</Link></Button>
         </CardFooter>
       </Card>
     </div>
