@@ -1,3 +1,4 @@
+// src/components/dashboard/submissions-table.tsx
 "use client";
 
 import React from "react";
@@ -41,9 +42,15 @@ export function SubmissionsTable({ submissions }: { submissions: Submission[] })
     router.push(`/submissions/${id}`);
   };
 
-  const handleMessageStudent = (e: React.MouseEvent) => {
+  const handleMessageStudent = (e: React.MouseEvent, submission: Submission) => {
     e.stopPropagation();
-    openChat();
+    if (submission.student._id) {
+        openChat({
+            _id: submission.student._id.toString(),
+            displayName: submission.student.name,
+            avatarUrl: submission.student.avatarUrl,
+        });
+    }
   };
 
   return (
@@ -114,7 +121,7 @@ export function SubmissionsTable({ submissions }: { submissions: Submission[] })
                     >
                       View
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleMessageStudent}>Message Student</DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleMessageStudent(e, submission)}>Message Student</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

@@ -3,6 +3,7 @@ export interface Submission {
   id: string;
   _id?: any; // For MongoDB ObjectId
   student: {
+    _id?: any; // For MongoDB ObjectId
     name: string;
     avatarUrl: string;
     uid?: string;

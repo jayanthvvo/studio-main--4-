@@ -11,7 +11,8 @@ import { useState, useEffect, useRef, FormEvent } from "react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { SheetHeader, SheetTitle } from "../ui/sheet";
 import type { Message } from "@/lib/types";
-
+import { useMessaging } from "@/contexts/messaging-context";
+import { useAuth } from "@/contexts/auth-context";
 
 interface ChatInterfaceProps {
     perspective: 'student' | 'supervisor';
@@ -23,13 +24,21 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
+  
+  const { chatPartner } = useMessaging();
+  const { displayName } = useAuth();
 
   const studentAvatar = PlaceHolderImages.find(p => p.id === 'avatar-1')?.imageUrl ?? "https://picsum.photos/seed/1/100/100";
   const supervisorAvatar = PlaceHolderImages.find(p => p.id === 'supervisor-avatar')?.imageUrl ?? "https://picsum.photos/seed/5/100/100";
 
   const selfSender = perspective;
-  const otherParty = perspective === 'supervisor' ? { name: 'Alice Johnson', avatar: studentAvatar, fallback: 'AJ', hint: 'woman portrait' } : { name: 'Dr. Evelyn Reed', avatar: supervisorAvatar, fallback: 'S', hint: 'professor portrait' };
+  
+  const otherParty = {
+    name: chatPartner?.displayName || (perspective === 'supervisor' ? 'Student' : 'Supervisor'),
+    avatar: chatPartner?.avatarUrl || (perspective === 'supervisor' ? studentAvatar : supervisorAvatar),
+    fallback: chatPartner?.displayName?.substring(0, 2).toUpperCase() || (perspective === 'supervisor' ? 'ST' : 'SU'),
+    hint: perspective === 'supervisor' ? 'student portrait' : 'professor portrait',
+  };
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -45,10 +54,9 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
       }
     };
     fetchMessages();
-  }, []);
+  }, [chatPartner]);
 
   useEffect(() => {
-    // Scroll to the bottom when new messages are added
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
     }
@@ -56,7 +64,7 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || isSending) return;
+    if (!newMessage.trim() || isSending || !chatPartner) return;
 
     setIsSending(true);
 
@@ -101,6 +109,10 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
             <div className="flex justify-center items-center h-full p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : !chatPartner ? (
+             <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground">
+                <p>Select a student from the submissions table to start messaging.</p>
+             </div>
           ) : (
             messages.map((message) => (
               <div
@@ -134,7 +146,7 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
                     ) : (
                       <AvatarImage src={supervisorAvatar} alt="Supervisor" data-ai-hint="professor portrait" />
                     )}
-                    <AvatarFallback>{selfSender === 'student' ? 'AJ' : 'S'}</AvatarFallback>
+                    <AvatarFallback>{displayName?.substring(0,2).toUpperCase() || (selfSender === 'student' ? 'ST' : 'SU')}</AvatarFallback>
                   </Avatar>
                 )}
               </div>
@@ -150,9 +162,9 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
             className="flex-1"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            disabled={isSending}
+            disabled={isSending || !chatPartner}
           />
-          <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
+          <Button type="submit" size="icon" disabled={isSending || !newMessage.trim() || !chatPartner}>
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
