@@ -1,4 +1,12 @@
-// src/lib/types.ts
+/*
+ * src/lib/types.ts
+ * Added fileData field to Submission interface for BSON Binary data
+ */
+// --- MODIFICATION: Import Binary from mongodb ---
+// Note: If this causes issues in client-side components,
+// you might need to use `any` or `Buffer` type instead.
+import { Binary } from 'mongodb';
+
 export interface Submission {
   id: string;
   _id?: any; // For MongoDB ObjectId
@@ -10,13 +18,18 @@ export interface Submission {
   };
   title: string;
   status: "In Review" | "Approved" | "Requires Revisions" | "Pending" | "Reviewed" | "Complete";
-  submittedAt: string;
-  deadline: string;
+  submittedAt: string; // Or Date
+  deadline: string; // Or Date
   grade: string | null;
-  content: string; 
-  fileName: string;
-  fileType: string;
+  content: string;
+  fileName: string | null; // Original filename for display
+  fileType: string | null; // Original file type
+  // --- MODIFICATION: Add fileData, remove/comment fileStoragePath ---
+  fileData?: Binary | null; // Field to hold BSON Binary data (optional on client)
+  // fileStoragePath: string | null; // No longer needed for this approach
+  // --- End Modification ---
   feedback: string | null;
+  downloadUrl?: string | null; // Can keep if used for temporary client state
 }
 
 export interface Milestone {
