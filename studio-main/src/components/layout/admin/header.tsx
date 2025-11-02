@@ -2,13 +2,13 @@
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+// --- MODIFICATION: Removed Search icon ---
+import { Menu } from "lucide-react";
+// --- MODIFICATION: Removed Input ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 // **FIX: Correctly import the AdminSidebar component**
 import { AdminSidebar } from "./sidebar";
 import { useRouter } from "next/navigation";
-// --- MODIFICATION: Added necessary imports ---
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,11 +20,9 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
-// --- END MODIFICATION ---
 
 export default function AdminHeader() {
   const router = useRouter();
-  // --- MODIFICATION: Get auth state ---
   const { displayName } = useAuth();
 
   const handleLogout = async () => {
@@ -36,11 +34,6 @@ export default function AdminHeader() {
       console.error("Failed to log out:", error);
     }
   };
-
-  const handleProfile = () => {
-    router.push("/dashboard/profile");
-  };
-  // --- END MODIFICATION ---
 
   return (
     <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-muted/40 px-6">
@@ -56,19 +49,13 @@ export default function AdminHeader() {
           <AdminSidebar />
         </SheetContent>
       </Sheet>
+      
+      {/* --- MODIFICATION: Removed search bar form --- */}
       <div className="w-full flex-1">
-        <form>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full bg-background shadow-none appearance-none pl-8 md:w-2/DELETED-w-1/3"
-            />
-          </div>
-        </form>
+        {/* Search bar removed */}
       </div>
-      {/* --- MODIFICATION: Replaced Avatar link with Dropdown Menu --- */}
+      {/* --- END MODIFICATION --- */}
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -90,12 +77,9 @@ export default function AdminHeader() {
             {displayName || "Admin Account"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* --- END MODIFICATION --- */}
     </header>
   );
 }

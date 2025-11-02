@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+// --- MODIFICATION: Removed Badge ---
 import {
   Select,
   SelectContent,
@@ -40,20 +40,21 @@ interface UserProfile {
     role: 'student' | 'supervisor' | 'admin';
 }
 
-// --- MODIFICATION: Updated this interface ---
+// --- MODIFICATION: Updated this interface (removed status) ---
 interface DissertationProject {
     _id: string;
     title: string;
     student: {
         _id: string;
         name: string;
-    } | null; // Added null for cases where student might not be found
+    } | null;
     supervisor: {
         _id: string;
         name: string;
-    } | null; // Added null for cases where supervisor might not be found
-    status: string;
+    } | null;
     createdAt: string;
+    // The 'status' field might still be sent from the API, 
+    // but we are choosing not to use it by omitting it here.
 }
 // --- END MODIFICATION ---
 
@@ -197,22 +198,20 @@ export default function AdminProjectsPage() {
                 <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
             ) : (
                 <Table>
+                    {/* --- MODIFICATION: Removed Status Column --- */}
                     <TableHeader>
                         <TableRow>
                             <TableHead>Project Title</TableHead>
                             <TableHead>Student</TableHead>
                             <TableHead>Supervisor</TableHead>
-                            <TableHead>Status</TableHead>
                         </TableRow>
                     </TableHeader>
-                    {/* --- MODIFICATION: Updated this section --- */}
                     <TableBody>
                         {projects.map((project) => (
                             <TableRow key={project._id}>
                                 <TableCell className="font-medium">{project.title}</TableCell>
                                 <TableCell>{project.student?.name || 'Not Assigned'}</TableCell>
                                 <TableCell>{project.supervisor?.name || 'Not Assigned'}</TableCell>
-                                <TableCell><Badge>{project.status}</Badge></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
