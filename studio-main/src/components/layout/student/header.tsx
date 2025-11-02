@@ -35,6 +35,12 @@ export default function StudentHeader() {
     router.push('/login');
   };
   
+  // --- MODIFICATION: Added handler for profile click ---
+  const handleProfile = () => {
+    router.push('/student/profile');
+  };
+  // --- END MODIFICATION ---
+
   const handleOpenChat = async () => {
     if (!user) return;
     setIsFetchingSupervisor(true);
@@ -102,8 +108,9 @@ export default function StudentHeader() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>{displayName || 'Student Profile'}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            {/* --- MODIFICATION: Added onClick handler --- */}
+            <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
+            {/* --- END MODIFICATION --- */}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>

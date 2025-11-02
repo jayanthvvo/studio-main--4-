@@ -1,8 +1,7 @@
-// src/components/layout/supervisor/header.tsx
-
 "use client";
 
-import { Bell, PanelLeft, Search } from "lucide-react";
+// --- MODIFICATION: Removed Bell and Search icons ---
+import { PanelLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +12,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// --- MODIFICATION: Removed Input ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarItems } from "./sidebar";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useRouter } from "next/navigation";
+// MODIFICATION: Import the useAuth hook
 import { useAuth } from "@/contexts/auth-context";
 
 export default function SupervisorHeader() {
@@ -25,14 +25,13 @@ export default function SupervisorHeader() {
     PlaceHolderImages.find((p) => p.id === "supervisor-avatar")?.imageUrl ??
     "https://picsum.photos/seed/5/100/100";
   const router = useRouter();
+  // MODIFICATION: Get the displayName from the auth context
   const { displayName } = useAuth();
 
   const handleLogout = () => {
     router.push("/login");
   };
 
-  // MODIFICATION: Removed handleSettings function
-  
   const handleProfile = () => {
     router.push("/dashboard/profile");
   };
@@ -53,18 +52,14 @@ export default function SupervisorHeader() {
         </SheetContent>
       </Sheet>
 
-      <div className="relative ml-auto flex-1 md:grow-0">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search submissions..."
-          className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
-        />
+      {/* --- MODIFICATION: Removed Search Bar --- */}
+      <div className="ml-auto flex-1 md:grow-0">
+        {/* Search bar removed */}
       </div>
-      <Button variant="ghost" size="icon" className="rounded-full">
-        <Bell className="h-5 w-5" />
-        <span className="sr-only">Toggle notifications</span>
-      </Button>
+      {/* --- END MODIFICATION --- */}
+      
+      {/* --- MODIFICATION: Removed Notification Bell --- */}
+      
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -83,12 +78,12 @@ export default function SupervisorHeader() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          {/* MODIFICATION: Display the dynamic name */}
           <DropdownMenuLabel>
             {displayName || "Supervisor Profile"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
-          {/* MODIFICATION: Removed Settings DropdownMenuItem */}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
