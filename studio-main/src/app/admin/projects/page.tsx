@@ -40,14 +40,22 @@ interface UserProfile {
     role: 'student' | 'supervisor' | 'admin';
 }
 
+// --- MODIFICATION: Updated this interface ---
 interface DissertationProject {
     _id: string;
     title: string;
-    studentName: string;
-    supervisorName: string;
+    student: {
+        _id: string;
+        name: string;
+    } | null; // Added null for cases where student might not be found
+    supervisor: {
+        _id: string;
+        name: string;
+    } | null; // Added null for cases where supervisor might not be found
     status: string;
     createdAt: string;
 }
+// --- END MODIFICATION ---
 
 export default function AdminProjectsPage() {
   const { user: adminUser } = useAuth();
@@ -197,16 +205,18 @@ export default function AdminProjectsPage() {
                             <TableHead>Status</TableHead>
                         </TableRow>
                     </TableHeader>
+                    {/* --- MODIFICATION: Updated this section --- */}
                     <TableBody>
                         {projects.map((project) => (
                             <TableRow key={project._id}>
                                 <TableCell className="font-medium">{project.title}</TableCell>
-                                <TableCell>{project.studentName}</TableCell>
-                                <TableCell>{project.supervisorName}</TableCell>
+                                <TableCell>{project.student?.name || 'Not Assigned'}</TableCell>
+                                <TableCell>{project.supervisor?.name || 'Not Assigned'}</TableCell>
                                 <TableCell><Badge>{project.status}</Badge></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
+                    {/* --- END MODIFICATION --- */}
                 </Table>
             )}
         </CardContent>

@@ -8,9 +8,40 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 // **FIX: Correctly import the AdminSidebar component**
 import { AdminSidebar } from "./sidebar";
 import { useRouter } from "next/navigation";
+// --- MODIFICATION: Added necessary imports ---
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/auth-context";
+import { getAuth, signOut } from "firebase/auth";
+import { app } from "@/lib/firebase";
+// --- END MODIFICATION ---
 
 export default function AdminHeader() {
   const router = useRouter();
+  // --- MODIFICATION: Get auth state ---
+  const { displayName } = useAuth();
+
+  const handleLogout = async () => {
+    const auth = getAuth(app);
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (error) {
+      console.error("Failed to log out:", error);
+    }
+  };
+
+  const handleProfile = () => {
+    router.push("/dashboard/profile");
+  };
+  // --- END MODIFICATION ---
+
   return (
     <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-muted/40 px-6">
       <Sheet>
@@ -32,15 +63,39 @@ export default function AdminHeader() {
             <Input
               type="search"
               placeholder="Search..."
-              className="w-full bg-background shadow-none appearance-none pl-8 md:w-2/3 lg:w-1/3"
+              className="w-full bg-background shadow-none appearance-none pl-8 md:w-2/DELETED-w-1/3"
             />
           </div>
         </form>
       </div>
-      <Avatar onClick={() => router.push("/dashboard/profile")}>
-        <AvatarImage src="https://github.com/shadcn.png" />
-        <AvatarFallback>CN</AvatarFallback>
-      </Avatar>
+      {/* --- MODIFICATION: Replaced Avatar link with Dropdown Menu --- */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="overflow-hidden rounded-full h-9 w-9"
+          >
+            <Avatar className="h-9 w-9">
+              <AvatarImage
+                src="https://github.com/shadcn.png"
+                alt="Admin"
+              />
+              <AvatarFallback>AD</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>
+            {displayName || "Admin Account"}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {/* --- END MODIFICATION --- */}
     </header>
   );
 }

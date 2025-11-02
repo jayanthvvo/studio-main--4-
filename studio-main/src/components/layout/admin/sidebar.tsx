@@ -4,16 +4,18 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThesisFlowLogo } from "@/components/logo";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Settings, LayoutDashboard, FolderKanban } from "lucide-react";
+// --- MODIFICATION: Removed Settings icon ---
+import { Users, LayoutDashboard, FolderKanban } from "lucide-react";
 // **FIX: Import the shared Sidebar component**
 import { Sidebar } from "@/components/ui/sidebar";
 
+// --- MODIFICATION: Removed Settings link ---
 const links = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/projects", label: "Projects", icon: FolderKanban },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
+// --- END MODIFICATION ---
 
 export function AdminSidebar() {
   const pathname = usePathname();
