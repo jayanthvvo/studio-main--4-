@@ -32,14 +32,16 @@ const summarizeSubmissionPrompt = ai.definePrompt({
   name: 'summarizeSubmissionPrompt',
   input: {schema: SummarizeSubmissionInputSchema},
   output: {schema: SummarizeSubmissionOutputSchema},
-  prompt: `You are an AI assistant tasked with summarizing student dissertation submissions for supervisors. Provide a concise summary of the following submission content:
+  // --- MODIFICATION: Updated prompt to request bullet points ---
+  prompt: `You are an AI assistant tasked with summarizing student dissertation submissions for supervisors. Provide a concise summary of the following submission content as a list of bullet points.
 
 Submission Content:
 {{{submissionContent}}}
 
-Focus on the main points, key arguments, and research findings. The summary should be brief and informative, enabling the supervisor to quickly grasp the essence of the submission.
+Focus on the main points, key arguments, and research findings. The summary should be a list of bullet points, enabling the supervisor to quickly grasp the essence of the submission.
 
-Respond with a summary and a brief message explaining that the summarization is complete.`,
+Respond with a summary (as bullet points) and a brief message explaining that the summarization is complete.`,
+  // --- END MODIFICATION ---
 });
 
 const summarizeSubmissionFlow = ai.defineFlow(

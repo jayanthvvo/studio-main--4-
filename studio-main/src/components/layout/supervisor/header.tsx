@@ -1,3 +1,5 @@
+// src/components/layout/supervisor/header.tsx
+
 "use client";
 
 import { Bell, PanelLeft, Search } from "lucide-react";
@@ -16,7 +18,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarItems } from "./sidebar";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useRouter } from "next/navigation";
-// MODIFICATION: Import the useAuth hook
 import { useAuth } from "@/contexts/auth-context";
 
 export default function SupervisorHeader() {
@@ -24,17 +25,14 @@ export default function SupervisorHeader() {
     PlaceHolderImages.find((p) => p.id === "supervisor-avatar")?.imageUrl ??
     "https://picsum.photos/seed/5/100/100";
   const router = useRouter();
-  // MODIFICATION: Get the displayName from the auth context
   const { displayName } = useAuth();
 
   const handleLogout = () => {
     router.push("/login");
   };
 
-  const handleSettings = () => {
-    router.push("/dashboard/settings");
-  };
-
+  // MODIFICATION: Removed handleSettings function
+  
   const handleProfile = () => {
     router.push("/dashboard/profile");
   };
@@ -85,13 +83,12 @@ export default function SupervisorHeader() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          {/* MODIFICATION: Display the dynamic name */}
           <DropdownMenuLabel>
             {displayName || "Supervisor Profile"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleProfile}>Profile</DropdownMenuItem>
-          <DropdownMenuItem onClick={handleSettings}>Settings</DropdownMenuItem>
+          {/* MODIFICATION: Removed Settings DropdownMenuItem */}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
