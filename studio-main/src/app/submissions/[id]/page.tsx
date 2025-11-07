@@ -1,10 +1,11 @@
+// src/app/submissions/[id]/page.tsx
 /*
- * src/app/submissions/[id]/page.tsx
- * Corrected handleDownload to use fetch with Authorization header
+ * MODIFICATION: Removed submissionContent prop from AI components
+ * as they now use a file uploader.
  */
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'; // <-- TYPO WAS HERE
 import { useAuth } from '@/contexts/auth-context';
 import { Submission } from '@/lib/types';
 import { Loader2, ArrowLeft, Download } from 'lucide-react';
@@ -17,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { ReviewForm } from '@/components/submission/review-form';
 import SubmissionSummary from "@/components/ai/submission-summary";
 import PlagiarismCheck from "@/components/ai/plagiarism-check";
-import { useToast } from "@/hooks/use-toast"; // <-- Import useToast
+import { useToast } from "@/hooks/use-toast";
 
 export default function SubmissionPage() {
   const params = useParams();
@@ -26,21 +27,19 @@ export default function SubmissionPage() {
   const { user } = useAuth();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false); // <-- Add downloading state
+  const [downloading, setDownloading] = useState(false);
   const router = useRouter();
-  const { toast } = useToast(); // <-- Initialize toast
+  const { toast } = useToast();
 
   useEffect(() => {
     // --- Construct the download URL on the client-side ---
-    // This assumes the API route exists at /api/download/[id]/[filename]
     const constructSubmissionWithUrl = (data: any) => {
         const downloadUrl = data.fileName
          ? `/api/download/${data._id}/${encodeURIComponent(data.fileName)}`
          : null;
-        // Ensure grade and feedback are included, defaulting to null if missing
         return {
           ...data,
-          id: data._id, // Ensure id is set correctly
+          id: data._id, 
           grade: data.grade !== undefined ? data.grade : null,
           feedback: data.feedback !== undefined ? data.feedback : null,
           downloadUrl
@@ -62,27 +61,22 @@ export default function SubmissionPage() {
           throw new Error(errorData.error || 'Submission not found or you do not have permission.');
         }
         const data = await response.json();
-        // --- Use the helper function to set the state ---
         setSubmission(constructSubmissionWithUrl(data));
       } catch (error: any) {
         console.error("Failed to fetch submission:", error);
-        toast({ // <-- Add toast for fetch error
+        toast({ 
            title: "Error",
            description: error.message || "Could not load submission details.",
            variant: "destructive"
         });
-        // Optional: Redirect back or show error state
-        // router.push('/dashboard');
       } finally {
         setLoading(false);
       }
     };
 
     fetchSubmission();
-  // --- Add toast to dependency array ---
   }, [id, router, user, toast]);
 
-  // --- MODIFICATION: Updated handleDownload function ---
   const handleDownload = async () => {
     if (!submission?.downloadUrl || !submission.fileName || !user) {
       toast({
@@ -93,7 +87,7 @@ export default function SubmissionPage() {
       return;
     }
 
-    setDownloading(true); // Set downloading state
+    setDownloading(true); 
 
     try {
       const token = await user.getIdToken();
@@ -108,20 +102,13 @@ export default function SubmissionPage() {
         throw new Error(errorData.error || `Failed to download file (Status: ${response.status})`);
       }
 
-      // Get the file content as a Blob
       const blob = await response.blob();
-
-      // Create a temporary URL for the blob
       const url = window.URL.createObjectURL(blob);
-
-      // Create a temporary link element to trigger the download
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', submission.fileName); // Use the original filename
+      link.setAttribute('download', submission.fileName);
       document.body.appendChild(link);
       link.click();
-
-      // Clean up the temporary link and URL
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -133,10 +120,9 @@ export default function SubmissionPage() {
         variant: "destructive",
       });
     } finally {
-      setDownloading(false); // Reset downloading state
+      setDownloading(false);
     }
   };
-  // --- END MODIFICATION ---
 
   if (loading || !submission) {
     return (
@@ -146,7 +132,6 @@ export default function SubmissionPage() {
     );
   }
 
-  // --- (Rest of the component remains the same) ---
   return (
     <div className="space-y-6">
       <Button variant="ghost" onClick={() => router.back()} className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -170,7 +155,7 @@ export default function SubmissionPage() {
                       variant="outline"
                       size="sm"
                       onClick={handleDownload}
-                      disabled={downloading} // <-- Disable button while downloading
+                      disabled={downloading}
                     >
                       {downloading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -218,9 +203,11 @@ export default function SubmissionPage() {
                 <CardTitle>AI Analysis</CardTitle>
              </CardHeader>
              <CardContent className="space-y-4">
-                <SubmissionSummary submissionContent={submission.content} />
+                {/* --- MODIFICATION: Removed props --- */}
+                <SubmissionSummary />
                 <Separator />
-                <PlagiarismCheck text={submission.content} />
+                <PlagiarismCheck />
+                {/* --- END MODIFICATION --- */}
              </CardContent>
            </Card>
         </div>
@@ -228,11 +215,3 @@ export default function SubmissionPage() {
     </div>
   );
 }
-
-// Keep the type augmentation if you modified types.ts directly
-// Otherwise, remove this if fileData is now in types.ts
-// declare module '@/lib/types' {
-//   interface Submission {
-//     downloadUrl?: string | null;
-//   }
-// }
