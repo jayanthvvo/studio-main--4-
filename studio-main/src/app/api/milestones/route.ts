@@ -4,6 +4,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { adminAuth } from '@/lib/firebase-admin';
 import { ObjectId } from 'mongodb';
+import { sendEmail } from '@/lib/email'; // <-- 1. IMPORT ADDED
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
@@ -82,14 +83,42 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'A valid milestoneId and dueDate are required.' }, { status: 400 });
         }
         
+        const milestoneObjectId = new ObjectId(milestoneId); // <-- Store ObjectId
         const result = await db.collection("milestones").updateOne(
-            { _id: new ObjectId(milestoneId) },
+            { _id: milestoneObjectId }, // <-- Use ObjectId
             { $set: { dueDate: dueDate, status: 'In Progress' } }
         );
 
         if (result.modifiedCount === 0) {
             return NextResponse.json({ error: 'Milestone not found or not modified.' }, { status: 404 });
         }
+
+        // --- 2. EMAIL LOGIC START ---
+        try {
+          // Find the milestone to get the studentId and title
+          const milestone = await db.collection("milestones").findOne({ _id: milestoneObjectId });
+          
+          if (milestone) {
+            // Find the student's email from the 'users' collection
+            const student = await db.collection("users").findOne({ _id: milestone.studentId });
+
+            if (student && student.email) {
+              await sendEmail({
+                to: student.email,
+                subject: `Due Date Set: ${milestone.title}`,
+                html: `
+                  <p>Hello ${student.displayName},</p>
+                  <p>Your supervisor has set a new due date for your milestone: <strong>"${milestone.title}"</strong>.</p>
+                  <p><strong>New Due Date:</strong> ${dueDate}</p>
+                  <p>You can view this on your timeline in the ThesisFlow dashboard.</p>
+                `
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("Failed to send due date notification email:", emailError);
+        }
+        // --- EMAIL LOGIC END ---
 
         return NextResponse.json({ message: 'Milestone updated successfully.' });
     } catch (error) {

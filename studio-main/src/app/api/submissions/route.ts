@@ -1,12 +1,10 @@
-/*
- * src/app/api/submissions/route.ts
- * Modified POST to handle FormData, convert file to BSON Binary, and store in MongoDB
- */
+// src/app/api/submissions/route.ts
 
 import { NextResponse, NextRequest } from 'next/server'; // Import NextRequest
 import clientPromise from '@/lib/mongodb';
 import { adminAuth } from '@/lib/firebase-admin';
 import { ObjectId, Binary } from 'mongodb'; // Import Binary
+import { sendEmail } from '@/lib/email'; // <-- 1. IMPORT ADDED
 
 // GET function remains the same...
 export async function GET(request: Request) {
@@ -75,7 +73,7 @@ export async function POST(request: NextRequest) { // Changed Request to NextReq
 
     const client = await clientPromise;
     const db = client.db("thesisFlowDB");
-    const user = await db.collection("users").findOne({ uid: uid });
+    const user = await db.collection("users").findOne({ uid: uid }); // This is the student
 
     if (!user) {
          return NextResponse.json({ error: 'User profile not found.' }, { status: 404 });
@@ -131,6 +129,30 @@ export async function POST(request: NextRequest) { // Changed Request to NextReq
     const newSubmissionId = submissionResult.insertedId;
 
     if (newSubmissionId) {
+      // --- 2. EMAIL LOGIC START ---
+      try {
+        // Find the supervisor to email them
+        const dissertation = await db.collection("dissertations").findOne({ studentId: user._id });
+        if (dissertation) {
+          const supervisor = await db.collection("users").findOne({ _id: dissertation.supervisorId });
+          
+          if (supervisor && supervisor.email) {
+            await sendEmail({
+              to: supervisor.email,
+              subject: `New Submission: ${activeMilestone.title} from ${user.displayName}`,
+              html: `
+                <p>Hello ${supervisor.displayName},</p>
+                <p>Your student, <strong>${user.displayName}</strong>, has just submitted their work for the milestone: <strong>"${activeMilestone.title}"</strong>.</p>
+                <p>You can review their submission in your ThesisFlow dashboard.</p>
+              `
+            });
+          }
+        }
+      } catch (emailError) {
+        console.error("Failed to send submission notification email:", emailError);
+      }
+      // --- EMAIL LOGIC END ---
+
       // ... (Milestone update logic remains the same) ...
        const milestoneUpdateResult = await db.collection("milestones").updateOne(
             { _id: activeMilestone._id },

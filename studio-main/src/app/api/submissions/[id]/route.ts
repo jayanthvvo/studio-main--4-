@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { adminAuth } from '@/lib/firebase-admin';
 import { ObjectId } from 'mongodb';
+import { sendEmail } from '@/lib/email'; // <-- 1. IMPORT ADDED
 
 // GET function to fetch a single submission
 export async function GET(request: Request, { params }: { params: { id: string } }) {
@@ -101,6 +102,33 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         if (result.modifiedCount === 0) {
             return NextResponse.json({ error: 'Submission not found or not modified.' }, { status: 404 });
         }
+
+        // --- 2. EMAIL LOGIC START ---
+        try {
+          // Find the submission we just updated to get student details
+          const submission = await db.collection("submissions").findOne({ _id: submissionObjectId });
+          
+          if (submission) {
+            // Find the student's email from the 'users' collection using their UID
+            const student = await db.collection("users").findOne({ uid: submission.student.uid });
+
+            if (student && student.email) {
+              await sendEmail({
+                to: student.email,
+                subject: `Feedback Received for: ${submission.title}`,
+                html: `
+                  <p>Hello ${student.displayName},</p>
+                  <p>Your supervisor, <strong>${supervisor.displayName}</strong>, has left feedback for your submission: <strong>"${submission.title}"</strong>.</p>
+                  <p><strong>Grade:</strong> ${grade}</p>
+                  <p>You can view the full feedback in your ThesisFlow dashboard.</p>
+                `
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("Failed to send feedback notification email:", emailError);
+        }
+        // --- EMAIL LOGIC END ---
 
         return NextResponse.json({ message: 'Review submitted successfully.' });
     } catch (error) {
