@@ -1,14 +1,16 @@
 // src/app/submissions/[id]/page.tsx
 /*
- * MODIFICATION: Removed submissionContent prop from AI components
- * as they now use a file uploader.
+ * MODIFICATION:
+ * - Added a single file uploader to the "AI Analysis" card.
+ * - This page now manages extracting text from the PDF.
+ * - Passes the extracted text as a prop to AI components.
  */
 "use client";
 
-import { useEffect, useState } from 'react'; // <-- TYPO WAS HERE
+import { useEffect, useState, ChangeEvent } from 'react'; // <-- ADDED ChangeEvent
 import { useAuth } from '@/contexts/auth-context';
 import { Submission } from '@/lib/types';
-import { Loader2, ArrowLeft, Download } from 'lucide-react';
+import { Loader2, ArrowLeft, Download, FileUp, Sparkles } from 'lucide-react'; // <-- ADDED FileUp, Sparkles
 import { Button } from '@/components/ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +21,16 @@ import { ReviewForm } from '@/components/submission/review-form';
 import SubmissionSummary from "@/components/ai/submission-summary";
 import PlagiarismCheck from "@/components/ai/plagiarism-check";
 import { useToast } from "@/hooks/use-toast";
+import { Label } from '@/components/ui/label'; // <-- ADDED
+import { Input } from '@/components/ui/input'; // <-- ADDED
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // <-- ADDED
+
+// Declare pdfjsLib at the window level for TypeScript
+declare global {
+  interface Window {
+    pdfjsLib: any;
+  }
+}
 
 export default function SubmissionPage() {
   const params = useParams();
@@ -31,8 +43,14 @@ export default function SubmissionPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // --- NEW STATE FOR AI ANALYSIS ---
+  const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
+  // --- END NEW STATE ---
+
   useEffect(() => {
-    // --- Construct the download URL on the client-side ---
+    // ... (existing useEffect for fetchSubmission) ...
     const constructSubmissionWithUrl = (data: any) => {
         const downloadUrl = data.fileName
          ? `/api/download/${data._id}/${encodeURIComponent(data.fileName)}`
@@ -45,7 +63,6 @@ export default function SubmissionPage() {
           downloadUrl
         };
     };
-
 
     if (!id || !user) return;
 
@@ -73,11 +90,11 @@ export default function SubmissionPage() {
         setLoading(false);
       }
     };
-
     fetchSubmission();
   }, [id, router, user, toast]);
 
   const handleDownload = async () => {
+    // ... (existing handleDownload function) ...
     if (!submission?.downloadUrl || !submission.fileName || !user) {
       toast({
         title: "Download Error",
@@ -123,6 +140,75 @@ export default function SubmissionPage() {
       setDownloading(false);
     }
   };
+
+  // --- NEW PDF EXTRACTION FUNCTIONS ---
+  /**
+   * Extracts text content from a PDF file using client-side pdf.js
+   */
+  async function getTextFromPDF(file: File): Promise<string> {
+    if (!window.pdfjsLib) {
+      throw new Error("PDF.js library is not loaded. Please refresh the page.");
+    }
+    
+    const fileReader = new FileReader();
+    
+    return new Promise((resolve, reject) => {
+      fileReader.onload = async function() {
+        try {
+          const typedarray = new Uint8Array(this.result as ArrayBuffer);
+          const pdfDoc = await window.pdfjsLib.getDocument({ data: typedarray }).promise;
+          let fullText = '';
+
+          for (let i = 1; i <= pdfDoc.numPages; i++) {
+            const page = await pdfDoc.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map((item: any) => item.str).join(' ');
+            fullText += pageText + '\n\n';
+          }
+          resolve(fullText);
+        } catch (error: any) {
+          reject(new Error(`PDF Parsing Error: ${error.message}`));
+        }
+      };
+      fileReader.onerror = () => reject(new Error('Error reading the file.'));
+      fileReader.readAsArrayBuffer(file);
+    });
+  }
+
+  /**
+   * Handles file selection, extraction, and sets the text in state
+   */
+  const handleFileChangeForAnalysis = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setExtractionError("Please select a file.");
+      return;
+    }
+    if (file.type !== 'application/pdf') {
+      setExtractionError('Please select a valid PDF file.');
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractionError(null);
+    setExtractedText(null);
+
+    try {
+      const text = await getTextFromPDF(file);
+      if (text.trim().length === 0) {
+        throw new Error("Could not extract any text from this PDF.");
+      }
+      setExtractedText(text);
+      toast({ title: "File Ready for Analysis" });
+    } catch (err: any) {
+      setExtractionError(err.message);
+    } finally {
+      setIsExtracting(false);
+      event.target.value = ""; // Clear file input
+    }
+  };
+  // --- END NEW PDF FUNCTIONS ---
+
 
   if (loading || !submission) {
     return (
@@ -203,10 +289,56 @@ export default function SubmissionPage() {
                 <CardTitle>AI Analysis</CardTitle>
              </CardHeader>
              <CardContent className="space-y-4">
-                {/* --- MODIFICATION: Removed props --- */}
-                <SubmissionSummary />
+                {/* --- MODIFICATION: ADDED FILE UPLOADER --- */}
+                <div className="space-y-2">
+                  <Label htmlFor="ai-file-upload" className="font-semibold">
+                    Upload PDF for Analysis
+                  </Label>
+                  <Button asChild variant="outline" className="relative cursor-pointer w-full" disabled={isExtracting}>
+                    <Label htmlFor="ai-file-upload" className="cursor-pointer w-full">
+                      {isExtracting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileUp className="mr-2 h-4 w-4" />
+                      )}
+                      {isExtracting ? "Extracting text..." : (extractedText ? "File Loaded" : "Choose file...")}
+                    </Label>
+                  </Button>
+                  <Input
+                    id="ai-file-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChangeForAnalysis}
+                    className="hidden" // Hide the default ugly input
+                    disabled={isExtracting}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {submission.fileName ? "You can re-upload the downloaded submission here." : "No file attached to this submission."}
+                  </p>
+                </div>
+                
+                {extractionError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{extractionError}</AlertDescription>
+                  </Alert>
+                )}
+                
+                {extractedText && (
+                  <Alert variant="default">
+                    <Sparkles className="h-4 w-4" />
+                    <AlertTitle>File Ready</AlertTitle>
+                    <AlertDescription>
+                      PDF text extracted. You can now run the AI tools below.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {/* --- END MODIFICATION --- */}
+
+                {/* --- MODIFICATION: Pass extracted text as prop --- */}
+                <SubmissionSummary extractedText={extractedText} />
                 <Separator />
-                <PlagiarismCheck />
+                <PlagiarismCheck extractedText={extractedText} />
                 {/* --- END MODIFICATION --- */}
              </CardContent>
            </Card>
