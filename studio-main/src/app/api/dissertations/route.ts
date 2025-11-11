@@ -1,11 +1,11 @@
 // src/app/api/dissertations/route.ts
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // <-- Added NextRequest
 import clientPromise from '@/lib/mongodb';
 import { adminAuth } from '@/lib/firebase-admin';
 import { ObjectId } from 'mongodb';
 
-// CORRECTED GET function to fetch all dissertation projects
+// GET function (existing code, no changes)
 export async function GET(request: Request) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // This aggregation pipeline joins dissertations with student and supervisor info
+        // ... (rest of existing GET logic)
         const dissertations = await db.collection("dissertations").aggregate([
             {
                 $lookup: {
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
 }
 
 
-// POST function to create a new dissertation project
+// POST function (existing code, no changes)
 export async function POST(request: Request) {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -103,6 +103,7 @@ export async function POST(request: Request) {
         const studentObjectId = new ObjectId(studentId);
         const supervisorObjectId = new ObjectId(supervisorId);
 
+        // ... (rest of existing POST logic)
         const newDissertation = {
             title,
             studentId: studentObjectId,
@@ -140,5 +141,60 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error("!!!!!!!!!! DISSERTATION CREATION ERROR !!!!!!!!!!:", error);
         return NextResponse.json({ error: 'Failed to create dissertation project' }, { status: 500 });
+    }
+}
+
+// --- NEW DELETE FUNCTION ---
+export async function DELETE(request: NextRequest) {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+
+    try {
+        const decodedToken = await adminAuth.verifyIdToken(token);
+        const client = await clientPromise;
+        const db = client.db("thesisFlowDB");
+        const adminUser = await db.collection("users").findOne({ uid: decodedToken.uid });
+
+        // 1. Verify user is an admin
+        if (!adminUser || adminUser.role !== 'admin') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        // 2. Get the project ID from the query parameters
+        const { searchParams } = new URL(request.url);
+        const projectId = searchParams.get('id');
+
+        if (!projectId || !ObjectId.isValid(projectId)) {
+            return NextResponse.json({ error: 'A valid project ID is required.' }, { status: 400 });
+        }
+
+        const projectObjectId = new ObjectId(projectId);
+
+        // 3. Delete the dissertation project
+        const deleteProjectResult = await db.collection("dissertations").deleteOne({
+            _id: projectObjectId
+        });
+
+        if (deleteProjectResult.deletedCount === 0) {
+            return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
+        }
+
+        // 4. Delete all associated milestones
+        const deleteMilestonesResult = await db.collection("milestones").deleteMany({
+            dissertationId: projectObjectId
+        });
+
+        return NextResponse.json({ 
+            message: 'Project and associated milestones deleted successfully.',
+            deletedMilestonesCount: deleteMilestonesResult.deletedCount
+        }, { status: 200 });
+
+    } catch (error) {
+        console.error("!!!!!!!!!! DISSERTATION DELETION ERROR !!!!!!!!!!:", error);
+        return NextResponse.json({ error: 'Failed to delete dissertation project' }, { status: 500 });
     }
 }

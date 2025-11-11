@@ -1,3 +1,4 @@
+// src/app/admin/projects/page.tsx
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
@@ -20,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-// --- MODIFICATION: Removed Badge ---
 import {
   Select,
   SelectContent,
@@ -28,9 +28,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, AlertCircle, PlusCircle } from "lucide-react";
+import { Loader2, AlertCircle, PlusCircle, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserProfile {
     _id: string;
@@ -40,7 +51,6 @@ interface UserProfile {
     role: 'student' | 'supervisor' | 'admin';
 }
 
-// --- MODIFICATION: Updated this interface (removed status) ---
 interface DissertationProject {
     _id: string;
     title: string;
@@ -53,10 +63,7 @@ interface DissertationProject {
         name: string;
     } | null;
     createdAt: string;
-    // The 'status' field might still be sent from the API, 
-    // but we are choosing not to use it by omitting it here.
 }
-// --- END MODIFICATION ---
 
 export default function AdminProjectsPage() {
   const { user: adminUser } = useAuth();
@@ -73,6 +80,8 @@ export default function AdminProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     if (!adminUser) return;
@@ -82,7 +91,6 @@ export default function AdminProjectsPage() {
       const token = await adminUser.getIdToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      // Fetch both users and dissertations
       const [usersRes, dissertationsRes] = await Promise.all([
         fetch('/api/users', { headers }),
         fetch('/api/dissertations', { headers }),
@@ -140,6 +148,33 @@ export default function AdminProjectsPage() {
     }
   };
   
+  const handleDeleteProject = async (projectId: string) => {
+    if (!adminUser) return;
+    setDeletingId(projectId);
+    setError(null);
+
+    try {
+        const token = await adminUser.getIdToken();
+        const response = await fetch(`/api/dissertations?id=${projectId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to delete project.");
+        }
+
+        toast({ title: "Project Deleted", description: "The project and its milestones have been removed." });
+        fetchData(); // Refresh the projects list
+    } catch (err: any) {
+        setError(err.message);
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+        setDeletingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -151,7 +186,6 @@ export default function AdminProjectsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-            {/* Form content remains the same... */}
             {error && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -187,7 +221,6 @@ export default function AdminProjectsPage() {
         </CardContent>
       </Card>
       
-      {/* New Card for displaying projects */}
       <Card>
         <CardHeader>
             <CardTitle>Existing Projects</CardTitle>
@@ -197,26 +230,64 @@ export default function AdminProjectsPage() {
             {loading ? (
                 <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
             ) : (
-                <Table>
+                // --- MODIFICATION: WRAPPED IN A FRAGMENT <>...</> ---
+                <>
+                    {/* --- COMMENTS MOVED HERE --- */}
                     {/* --- MODIFICATION: Removed Status Column --- */}
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Project Title</TableHead>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Supervisor</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {projects.map((project) => (
-                            <TableRow key={project._id}>
-                                <TableCell className="font-medium">{project.title}</TableCell>
-                                <TableCell>{project.student?.name || 'Not Assigned'}</TableCell>
-                                <TableCell>{project.supervisor?.name || 'Not Assigned'}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
                     {/* --- END MODIFICATION --- */}
-                </Table>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Project Title</TableHead>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Supervisor</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {projects.map((project) => (
+                                <TableRow key={project._id}>
+                                    <TableCell className="font-medium">{project.title}</TableCell>
+                                    <TableCell>{project.student?.name || 'Not Assigned'}</TableCell>
+                                    <TableCell>{project.supervisor?.name || 'Not Assigned'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button 
+                                                    variant="destructive" 
+                                                    size="sm"
+                                                    disabled={deletingId === project._id}
+                                                >
+                                                    {deletingId === project._id ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the project
+                                                        <strong className="mx-1">"{project.title}"</strong>
+                                                        and all of its associated milestones.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteProject(project._id)}>
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </>
             )}
         </CardContent>
       </Card>
