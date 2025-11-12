@@ -4,13 +4,14 @@
  * - Added a single file uploader to the "AI Analysis" card.
  * - This page now manages extracting text from the PDF.
  * - Passes the extracted text as a prop to AI components.
+ * - Added combined AI analysis state and a single button.
  */
 "use client";
 
-import { useEffect, useState, ChangeEvent } from 'react'; // <-- ADDED ChangeEvent
+import { useEffect, useState, ChangeEvent } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Submission } from '@/lib/types';
-import { Loader2, ArrowLeft, Download, FileUp, Sparkles } from 'lucide-react'; // <-- ADDED FileUp, Sparkles
+import { Loader2, ArrowLeft, Download, FileUp, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,12 +19,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ReviewForm } from '@/components/submission/review-form';
-import SubmissionSummary from "@/components/ai/submission-summary";
-import PlagiarismCheck from "@/components/ai/plagiarism-check";
+// --- MODIFICATION: Import result types ---
+import SubmissionSummary, { SummarizeSubmissionOutput } from "@/components/ai/submission-summary";
+import PlagiarismCheck, { CheckPlagiarismOutput } from "@/components/ai/plagiarism-check";
+// --- END MODIFICATION ---
 import { useToast } from "@/hooks/use-toast";
-import { Label } from '@/components/ui/label'; // <-- ADDED
-import { Input } from '@/components/ui/input'; // <-- ADDED
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // <-- ADDED
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Declare pdfjsLib at the window level for TypeScript
 declare global {
@@ -43,10 +46,16 @@ export default function SubmissionPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // --- NEW STATE FOR AI ANALYSIS ---
+  // --- STATE FOR PDF EXTRACTION ---
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
+
+  // --- NEW: COMBINED AI STATE ---
+  const [summary, setSummary] = useState<SummarizeSubmissionOutput | null>(null);
+  const [plagiarismResult, setPlagiarismResult] = useState<CheckPlagiarismOutput | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   // --- END NEW STATE ---
 
   useEffect(() => {
@@ -141,7 +150,7 @@ export default function SubmissionPage() {
     }
   };
 
-  // --- NEW PDF EXTRACTION FUNCTIONS ---
+  // --- PDF EXTRACTION FUNCTIONS ---
   /**
    * Extracts text content from a PDF file using client-side pdf.js
    */
@@ -192,6 +201,11 @@ export default function SubmissionPage() {
     setIsExtracting(true);
     setExtractionError(null);
     setExtractedText(null);
+    // --- NEW: Clear old AI results when new file is uploaded ---
+    setSummary(null);
+    setPlagiarismResult(null);
+    setAiError(null);
+    // --- END NEW ---
 
     try {
       const text = await getTextFromPDF(file);
@@ -207,7 +221,59 @@ export default function SubmissionPage() {
       event.target.value = ""; // Clear file input
     }
   };
-  // --- END NEW PDF FUNCTIONS ---
+  // --- END PDF FUNCTIONS ---
+
+
+  // --- NEW: COMBINED AI HANDLER ---
+  const handleRunAiAnalysis = async () => {
+    if (!extractedText || !user) {
+      setAiError("No text available to analyze. Please upload a PDF first.");
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiError(null);
+    setSummary(null);
+    setPlagiarismResult(null);
+    
+    try {
+      const token = await user.getIdToken();
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
+      const body = JSON.stringify({ text: extractedText });
+
+      // Use Promise.all to run both checks in parallel
+      const [summaryResponse, plagiarismResponse] = await Promise.all([
+        fetch('/api/summarize-text', { method: 'POST', headers, body }),
+        fetch('/api/check-plagiarism-text', { method: 'POST', headers, body })
+      ]);
+
+      // Handle Summary Response
+      const summaryData = await summaryResponse.json();
+      if (!summaryResponse.ok) {
+        throw new Error(`Summary failed: ${summaryData.error || 'Unknown error'}`);
+      }
+      setSummary({ summary: summaryData.summary, progress: "Summary complete." });
+
+      // Handle Plagiarism Response
+      const plagiarismData = await plagiarismResponse.json();
+      if (!plagiarismResponse.ok) {
+        throw new Error(`Plagiarism check failed: ${plagiarismData.error || 'Unknown error'}`);
+      }
+      setPlagiarismResult(plagiarismData);
+
+      toast({ title: "AI Analysis Complete!" });
+
+    } catch (err: any) {
+      setAiError(err.message);
+      toast({ title: "AI Analysis Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+  // --- END NEW HANDLER ---
 
 
   if (loading || !submission) {
@@ -289,7 +355,7 @@ export default function SubmissionPage() {
                 <CardTitle>AI Analysis</CardTitle>
              </CardHeader>
              <CardContent className="space-y-4">
-                {/* --- MODIFICATION: ADDED FILE UPLOADER --- */}
+                {/* --- PDF UPLOADER (No change) --- */}
                 <div className="space-y-2">
                   <Label htmlFor="ai-file-upload" className="font-semibold">
                     Upload PDF for Analysis
@@ -324,7 +390,7 @@ export default function SubmissionPage() {
                   </Alert>
                 )}
                 
-                {extractedText && (
+                {extractedText && !isExtracting && (
                   <Alert variant="default">
                     <Sparkles className="h-4 w-4" />
                     <AlertTitle>File Ready</AlertTitle>
@@ -333,12 +399,35 @@ export default function SubmissionPage() {
                     </AlertDescription>
                   </Alert>
                 )}
-                {/* --- END MODIFICATION --- */}
+                {/* --- END PDF UPLOADER --- */}
 
-                {/* --- MODIFICATION: Pass extracted text as prop --- */}
-                <SubmissionSummary extractedText={extractedText} />
+                {/* --- NEW: SINGLE AI BUTTON --- */}
+                <Button 
+                  onClick={handleRunAiAnalysis} 
+                  disabled={isAiLoading || !extractedText || isExtracting} 
+                  className="w-full"
+                >
+                  {isAiLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {isAiLoading ? "Analyzing..." : "Run AI Analysis"}
+                </Button>
+                {/* --- END NEW BUTTON --- */}
+
+                {/* NEW: AI Error Alert */}
+                {aiError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Analysis Error</AlertTitle>
+                    <AlertDescription>{aiError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* --- MODIFICATION: Pass result props down --- */}
+                <SubmissionSummary summary={summary} isLoading={isAiLoading} />
                 <Separator />
-                <PlagiarismCheck extractedText={extractedText} />
+                <PlagiarismCheck result={plagiarismResult} isLoading={isAiLoading} />
                 {/* --- END MODIFICATION --- */}
              </CardContent>
            </Card>
