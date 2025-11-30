@@ -1,6 +1,6 @@
+// src/components/layout/supervisor/header.tsx
 "use client";
 
-// --- MODIFICATION: Removed Bell and Search icons ---
 import { PanelLeft } from "lucide-react";
 import {
   DropdownMenu,
@@ -12,21 +12,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-// --- MODIFICATION: Removed Input ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarItems } from "./sidebar";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useRouter } from "next/navigation";
-// MODIFICATION: Import the useAuth hook
 import { useAuth } from "@/contexts/auth-context";
+// --- MODIFICATION: Added Imports for Chat ---
+import { ChatInterface } from "@/components/messaging/chat-interface";
+import { useMessaging } from "@/contexts/messaging-context";
+// --- END MODIFICATION ---
 
 export default function SupervisorHeader() {
   const supervisorAvatar =
     PlaceHolderImages.find((p) => p.id === "supervisor-avatar")?.imageUrl ??
     "https://picsum.photos/seed/5/100/100";
   const router = useRouter();
-  // MODIFICATION: Get the displayName from the auth context
   const { displayName } = useAuth();
+  // --- MODIFICATION: Get messaging state ---
+  const { isChatOpen, closeChat } = useMessaging();
 
   const handleLogout = () => {
     router.push("/login");
@@ -52,13 +55,16 @@ export default function SupervisorHeader() {
         </SheetContent>
       </Sheet>
 
-      {/* --- MODIFICATION: Removed Search Bar --- */}
-      <div className="ml-auto flex-1 md:grow-0">
-        {/* Search bar removed */}
-      </div>
+      {/* --- MODIFICATION: Added Chat Sheet --- */}
+      <Sheet open={isChatOpen} onOpenChange={(isOpen) => !isOpen && closeChat()}>
+          <SheetContent className="w-[400px] sm:w-[540px] p-0 border-l">
+              <ChatInterface perspective="supervisor" />
+          </SheetContent>
+      </Sheet>
       {/* --- END MODIFICATION --- */}
-      
-      {/* --- MODIFICATION: Removed Notification Bell --- */}
+
+      <div className="ml-auto flex-1 md:grow-0">
+      </div>
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -78,7 +84,6 @@ export default function SupervisorHeader() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          {/* MODIFICATION: Display the dynamic name */}
           <DropdownMenuLabel>
             {displayName || "Supervisor Profile"}
           </DropdownMenuLabel>

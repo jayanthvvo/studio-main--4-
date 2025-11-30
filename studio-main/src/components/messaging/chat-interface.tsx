@@ -15,18 +15,18 @@ import { useMessaging } from "@/contexts/messaging-context";
 import { useAuth } from "@/contexts/auth-context";
 
 interface ChatInterfaceProps {
-    perspective: 'student' | 'supervisor';
+    perspective?: 'student' | 'supervisor'; // Made optional
 }
 
 export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const { chatPartner } = useMessaging();
-  const { displayName } = useAuth();
+  const { displayName, user } = useAuth(); // Get user for token
 
   const studentAvatar = PlaceHolderImages.find(p => p.id === 'avatar-1')?.imageUrl ?? "https://picsum.photos/seed/1/100/100";
   const supervisorAvatar = PlaceHolderImages.find(p => p.id === 'supervisor-avatar')?.imageUrl ?? "https://picsum.photos/seed/5/100/100";
@@ -41,12 +41,20 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
   };
 
   useEffect(() => {
+    if (!chatPartner || !user) return;
+
     const fetchMessages = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/messages');
-        const data = await response.json();
-        setMessages(data);
+        const token = await user.getIdToken();
+        // Pass the partnerId to fetch specific conversation
+        const response = await fetch(`/api/messages?partnerId=${chatPartner._id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            setMessages(data);
+        }
       } catch (error) {
         console.error("Failed to fetch messages:", error);
       } finally {
@@ -54,7 +62,7 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
       }
     };
     fetchMessages();
-  }, [chatPartner]);
+  }, [chatPartner, user]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -64,17 +72,20 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || isSending || !chatPartner) return;
+    if (!newMessage.trim() || isSending || !chatPartner || !user) return;
 
     setIsSending(true);
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ text: newMessage, sender: selfSender }),
+        // Send partnerId instead of sender role
+        body: JSON.stringify({ text: newMessage, partnerId: chatPartner._id }),
       });
 
       if (response.ok) {
@@ -113,6 +124,10 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
              <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground">
                 <p>Select a student from the submissions table to start messaging.</p>
              </div>
+          ) : messages.length === 0 ? (
+             <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground">
+                <p>No messages yet. Say hello!</p>
+             </div>
           ) : (
             messages.map((message) => (
               <div
@@ -139,16 +154,6 @@ export function ChatInterface({ perspective = 'supervisor' }: ChatInterfaceProps
                   <p>{message.text}</p>
                   <p className={cn("text-xs mt-1 text-right", message.sender === selfSender ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
-                {message.sender === selfSender && (
-                  <Avatar className="h-8 w-8">
-                    {selfSender === 'student' ? (
-                      <AvatarImage src={studentAvatar} alt="Student" data-ai-hint="woman portrait" />
-                    ) : (
-                      <AvatarImage src={supervisorAvatar} alt="Supervisor" data-ai-hint="professor portrait" />
-                    )}
-                    <AvatarFallback>{displayName?.substring(0,2).toUpperCase() || (selfSender === 'student' ? 'ST' : 'SU')}</AvatarFallback>
-                  </Avatar>
-                )}
               </div>
             ))
           )}
